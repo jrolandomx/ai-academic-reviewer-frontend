@@ -1,46 +1,119 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# AI Chat API with PDF RAG
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+Backend built with FastAPI, OpenAI API, LangChain, ChromaDB and PDF ingestion.
 
-# testing
-/coverage
+---
 
-# next.js
-/.next/
-/out/
+## Features
 
-# production
-/build
+- Conversational AI endpoint
+- Streaming responses
+- PDF upload
+- RAG pipeline
+- Semantic search with embeddings
+- Text summarization
+- Translation
+- Keyword extraction
 
-# misc
-.DS_Store
-*.pem
+---
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+## Tech Stack
 
-# env files (can opt-in for committing if needed)
-.env*
+- Python
+- FastAPI
+- OpenAI API
+- LangChain
+- ChromaDB
+- Pydantic
 
-# vercel
-.vercel
+---
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+## Run locally
 
-node_modules/
-.next/
-.env
-.env.local
+```bash
+python -m venv venv
+source venv/bin/activate
+
+pip install -r requirements.txt
+
+uvicorn app:app --reload
+```
+
+---
+
+## Environment variables
+
+Create a `.env` file:
+
+```env
+OPENAI_API_KEY=your_api_key
+```
+
+---
+
+## Available Endpoints
+
+### Chat
+```http
+POST /chat
+```
+
+### Streaming Chat
+```http
+POST /chat-stream
+```
+
+### Upload PDF
+```http
+POST /upload-pdf
+```
+
+### Ask PDF
+```http
+POST /ask-pdf
+```
+
+### Summarize Text
+```http
+POST /summarize
+```
+
+### Translate Text
+```http
+POST /translate
+```
+
+### Extract Keywords
+```http
+POST /keywords
+```
+
+---
+
+## AI Capabilities
+
+- Conversational memory
+- PDF semantic search
+- Retrieval-Augmented Generation (RAG)
+- Embeddings with OpenAI
+- Vector search using ChromaDB
+- Streaming responses
+
+---
+
+## Future Improvements
+
+- Multi-agent workflows
+- Persistent memory
+- Authentication
+- Multi-document support
+- Deployment to cloud platforms
+- Docker support
+
+---
+
+## Author
+
+Rolando Ramirez  
+GitHub: https://github.com/jrolandomx
+node_modules

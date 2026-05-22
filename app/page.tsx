@@ -7,6 +7,8 @@ interface Message {
   content: string;
 }
 
+const API_URL = "https://ai-chat-api-rag.onrender.com";
+
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [pdfQuestion, setPdfQuestion] = useState("");
@@ -29,39 +31,48 @@ export default function Home() {
     };
 
     setMessages((prev) => [...prev, userMessage, assistantMessage]);
+
     setLoading(true);
 
-    const res = await fetch("http://127.0.0.1:8000/chat-stream", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ prompt }),
-    });
-
-    const reader = res.body?.getReader();
-    const decoder = new TextDecoder();
-
-    if (!reader) return;
-
-    let fullResponse = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      fullResponse += chunk;
-
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated[updated.length - 1] = {
-          role: "assistant",
-          content: fullResponse,
-        };
-        return updated;
+    try {
+      const res = await fetch(`${API_URL}/chat-stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt }),
       });
+
+      const reader = res.body?.getReader();
+
+      if (!reader) return;
+
+      const decoder = new TextDecoder();
+
+      let fullResponse = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+
+        fullResponse += chunk;
+
+        setMessages((prev) => {
+          const updated = [...prev];
+
+          updated[updated.length - 1] = {
+            role: "assistant",
+            content: fullResponse,
+          };
+
+          return updated;
+        });
+      }
+    } catch (error) {
+      console.error(error);
     }
 
     setPrompt("");
@@ -74,12 +85,13 @@ export default function Home() {
     if (!file) return;
 
     const formData = new FormData();
+
     formData.append("file", file);
 
     setUploadStatus("Procesando PDF...");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/upload-pdf", {
+      const res = await fetch(`${API_URL}/upload-pdf`, {
         method: "POST",
         body: formData,
       });
@@ -91,6 +103,7 @@ export default function Home() {
       );
     } catch (error) {
       console.error(error);
+
       setUploadStatus("Error cargando PDF");
     }
   }
@@ -101,7 +114,7 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/ask-pdf", {
+      const res = await fetch(`${API_URL}/ask-pdf`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -116,6 +129,7 @@ export default function Home() {
       setPdfAnswer(data.answer || data.error);
     } catch (error) {
       console.error(error);
+
       setPdfAnswer("Error consultando PDF");
     }
 
@@ -126,12 +140,18 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-100 p-8 text-slate-900">
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 md:grid-cols-2">
+
+        {/* CHAT IA */}
         <section className="flex h-[90vh] flex-col rounded-3xl bg-white shadow-xl">
+
           <div className="border-b border-slate-200 p-6">
-            <h1 className="text-3xl font-bold text-slate-900">AI Chat</h1>
+            <h1 className="text-3xl font-bold text-slate-900">
+              AI Chat
+            </h1>
           </div>
 
           <div className="flex-1 space-y-4 overflow-y-auto p-6">
+
             {messages.map((message, index) => (
               <div
                 key={index}
@@ -150,10 +170,13 @@ export default function Home() {
                 Generando respuesta...
               </div>
             )}
+
           </div>
 
           <div className="border-t border-slate-200 p-6">
+
             <div className="flex gap-4">
+
               <textarea
                 className="flex-1 rounded-2xl border border-slate-300 p-4 text-slate-900 placeholder:text-slate-400"
                 rows={3}
@@ -168,16 +191,24 @@ export default function Home() {
               >
                 Enviar
               </button>
+
             </div>
+
           </div>
+
         </section>
 
+        {/* CHAT PDF */}
         <section className="flex h-[90vh] flex-col rounded-3xl bg-white shadow-xl">
+
           <div className="border-b border-slate-200 p-6">
-            <h1 className="text-3xl font-bold text-slate-900">Chat con PDF</h1>
+            <h1 className="text-3xl font-bold text-slate-900">
+              Chat con PDF
+            </h1>
           </div>
 
           <div className="space-y-4 overflow-y-auto p-6">
+
             <input
               type="file"
               accept="application/pdf"
@@ -208,12 +239,20 @@ export default function Home() {
 
             {pdfAnswer && (
               <div className="rounded-2xl bg-slate-100 p-4 text-slate-900">
-                <h2 className="mb-2 font-semibold">Respuesta del PDF:</h2>
-                <p className="whitespace-pre-wrap leading-relaxed">{pdfAnswer}</p>
+                <h2 className="mb-2 font-semibold">
+                  Respuesta del PDF:
+                </h2>
+
+                <p className="whitespace-pre-wrap leading-relaxed">
+                  {pdfAnswer}
+                </p>
               </div>
             )}
+
           </div>
+
         </section>
+
       </div>
     </main>
   );

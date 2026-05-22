@@ -34,3 +34,80 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+# AI Academic Assistant Frontend
+
+Frontend built with Next.js, React and Tailwind CSS for interacting with an AI backend powered by FastAPI and OpenAI.
+
+---
+
+## Features
+
+- Conversational AI chat UI
+- Streaming responses
+- PDF upload interface
+- Ask questions about uploaded PDFs
+- Modern responsive interface
+- ChatGPT-style experience
+
+---
+
+## Tech Stack
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- Fetch API
+
+---
+
+## Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+---
+
+## Backend Requirement
+
+This frontend requires the backend API running locally:
+
+```text
+http://127.0.0.1:8000
+```
+
+---
+
+## Main Features
+
+### AI Chat
+- Conversational assistant
+- Streaming responses
+- Context-aware interaction
+
+### PDF RAG
+- Upload PDF files
+- Semantic search
+- Retrieval-Augmented Generation
+- Contextual document Q&A
+
+---
+
+## Future Improvements
+
+- Authentication
+- Persistent chat history
+- Multi-PDF support
+- Dark mode
+- Deploy to Vercel
+- Multi-agent workflows
+
+---
+
+## Author
+
+Rolando Ramirez  
+GitHub: https://github.com/jrolandomx

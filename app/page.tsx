@@ -31,7 +31,6 @@ export default function Home() {
     };
 
     setMessages((prev) => [...prev, userMessage, assistantMessage]);
-
     setLoading(true);
 
     try {
@@ -43,12 +42,12 @@ export default function Home() {
         body: JSON.stringify({ prompt }),
       });
 
-      const reader = res.body?.getReader();
+      if (!res.ok || !res.body) {
+        throw new Error("Error en la respuesta del servidor");
+      }
 
-      if (!reader) return;
-
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
-
       let fullResponse = "";
 
       while (true) {
@@ -57,7 +56,6 @@ export default function Home() {
         if (done) break;
 
         const chunk = decoder.decode(value);
-
         fullResponse += chunk;
 
         setMessages((prev) => {
@@ -73,6 +71,17 @@ export default function Home() {
       }
     } catch (error) {
       console.error(error);
+
+      setMessages((prev) => {
+        const updated = [...prev];
+
+        updated[updated.length - 1] = {
+          role: "assistant",
+          content: "Error conectando con el backend.",
+        };
+
+        return updated;
+      });
     }
 
     setPrompt("");
@@ -85,10 +94,10 @@ export default function Home() {
     if (!file) return;
 
     const formData = new FormData();
-
     formData.append("file", file);
 
     setUploadStatus("Procesando PDF...");
+    setPdfAnswer("");
 
     try {
       const res = await fetch(`${API_URL}/upload-pdf`, {
@@ -98,12 +107,15 @@ export default function Home() {
 
       const data = await res.json();
 
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Error al cargar PDF");
+      }
+
       setUploadStatus(
         `PDF cargado: ${data.filename} | Páginas: ${data.pages} | Chunks: ${data.chunks}`
       );
     } catch (error) {
       console.error(error);
-
       setUploadStatus("Error cargando PDF");
     }
   }
@@ -112,6 +124,7 @@ export default function Home() {
     if (!pdfQuestion.trim()) return;
 
     setLoading(true);
+    setPdfAnswer("Consultando PDF...");
 
     try {
       const res = await fetch(`${API_URL}/ask-pdf`, {
@@ -126,10 +139,13 @@ export default function Home() {
 
       const data = await res.json();
 
-      setPdfAnswer(data.answer || data.error);
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Error consultando PDF");
+      }
+
+      setPdfAnswer(data.answer);
     } catch (error) {
       console.error(error);
-
       setPdfAnswer("Error consultando PDF");
     }
 
@@ -140,18 +156,12 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-100 p-8 text-slate-900">
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 md:grid-cols-2">
-
-        {/* CHAT IA */}
         <section className="flex h-[90vh] flex-col rounded-3xl bg-white shadow-xl">
-
           <div className="border-b border-slate-200 p-6">
-            <h1 className="text-3xl font-bold text-slate-900">
-              AI Chat
-            </h1>
+            <h1 className="text-3xl font-bold text-slate-900">AI Chat</h1>
           </div>
 
           <div className="flex-1 space-y-4 overflow-y-auto p-6">
-
             {messages.map((message, index) => (
               <div
                 key={index}
@@ -170,13 +180,10 @@ export default function Home() {
                 Generando respuesta...
               </div>
             )}
-
           </div>
 
           <div className="border-t border-slate-200 p-6">
-
             <div className="flex gap-4">
-
               <textarea
                 className="flex-1 rounded-2xl border border-slate-300 p-4 text-slate-900 placeholder:text-slate-400"
                 rows={3}
@@ -191,24 +198,16 @@ export default function Home() {
               >
                 Enviar
               </button>
-
             </div>
-
           </div>
-
         </section>
 
-        {/* CHAT PDF */}
         <section className="flex h-[90vh] flex-col rounded-3xl bg-white shadow-xl">
-
           <div className="border-b border-slate-200 p-6">
-            <h1 className="text-3xl font-bold text-slate-900">
-              Chat con PDF
-            </h1>
+            <h1 className="text-3xl font-bold text-slate-900">Chat con PDF</h1>
           </div>
 
           <div className="space-y-4 overflow-y-auto p-6">
-
             <input
               type="file"
               accept="application/pdf"
@@ -239,20 +238,12 @@ export default function Home() {
 
             {pdfAnswer && (
               <div className="rounded-2xl bg-slate-100 p-4 text-slate-900">
-                <h2 className="mb-2 font-semibold">
-                  Respuesta del PDF:
-                </h2>
-
-                <p className="whitespace-pre-wrap leading-relaxed">
-                  {pdfAnswer}
-                </p>
+                <h2 className="mb-2 font-semibold">Respuesta del PDF:</h2>
+                <p className="whitespace-pre-wrap leading-relaxed">{pdfAnswer}</p>
               </div>
             )}
-
           </div>
-
         </section>
-
       </div>
     </main>
   );

@@ -121,6 +121,7 @@ It provides:
 - Strengths and weaknesses
 - Concrete recommendations
 - Final editorial decision
+- Export academic review as Word document
 
 ## Live Demo
 

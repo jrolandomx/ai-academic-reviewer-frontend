@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 interface Source {
   page: number;
@@ -34,7 +35,6 @@ export default function Home() {
     if (!message.trim()) return;
 
     setLoadingChat(true);
-    setChatResponse("");
 
     try {
       const response = await fetch(`${API_URL}/chat`, {
@@ -82,8 +82,6 @@ export default function Home() {
   }
 
   async function askPDF() {
-    if (!pdfQuestion.trim()) return;
-
     setLoadingPdf(true);
 
     try {
@@ -217,29 +215,8 @@ export default function Home() {
 
           <p className="mt-4 max-w-4xl text-lg leading-relaxed text-slate-600">
             Plataforma inteligente para arbitraje académico, revisión científica,
-            análisis metodológico, evaluación editorial y generación automática
-            de dictámenes académicos.
+            análisis metodológico y generación automática de dictámenes.
           </p>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            {[
-              "Next.js",
-              "FastAPI",
-              "OpenAI",
-              "LangChain",
-              "FAISS",
-              "RAG",
-              "Peer Review",
-              "Scopus",
-            ].map((tech) => (
-              <span
-                key={tech}
-                className="rounded-full border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700"
-              >
-                {tech}
-              </span>
-            ))}
-          </div>
         </header>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
@@ -358,37 +335,6 @@ export default function Home() {
                   ? "Dictaminando..."
                   : "Dictaminar artículo"}
               </button>
-
-              {pdfResponse && (
-                <div className="rounded-2xl bg-slate-100 p-5">
-                  <p className="whitespace-pre-wrap leading-relaxed">
-                    {pdfResponse}
-                  </p>
-                </div>
-              )}
-
-              {pdfSources.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="font-semibold">
-                    Fuentes consultadas
-                  </h3>
-
-                  {pdfSources.map((source, index) => (
-                    <div
-                      key={index}
-                      className="rounded-2xl border border-slate-200 bg-white p-4"
-                    >
-                      <p className="font-medium">
-                        Página {source.page + 1}
-                      </p>
-
-                      <p className="mt-2 text-sm text-slate-600">
-                        {source.content}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </section>
 
@@ -404,29 +350,25 @@ export default function Home() {
                   onClick={exportWord}
                   className="rounded-xl border border-slate-900 px-4 py-2 text-sm"
                 >
-                  {loadingWord
-                    ? "Exportando..."
-                    : "Word"}
+                  {loadingWord ? "..." : "Word"}
                 </button>
 
                 <button
                   onClick={exportPDF}
                   className="rounded-xl border border-slate-900 px-4 py-2 text-sm"
                 >
-                  {loadingPDFExport
-                    ? "Exportando..."
-                    : "PDF"}
+                  {loadingPDFExport ? "..." : "PDF"}
                 </button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
               {articleReview ? (
-                <div className="rounded-2xl bg-slate-100 p-5">
-                  <p className="whitespace-pre-wrap leading-relaxed">
+                <article className="prose prose-slate max-w-none">
+                  <ReactMarkdown>
                     {articleReview}
-                  </p>
-                </div>
+                  </ReactMarkdown>
+                </article>
               ) : (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-slate-500">
                   Sube un artículo PDF y genera un dictamen académico.

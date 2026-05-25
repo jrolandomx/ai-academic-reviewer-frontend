@@ -69,7 +69,7 @@ export default function Home() {
           return updated;
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error);
 
       setMessages((prev) => {
@@ -108,15 +108,21 @@ export default function Home() {
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        throw new Error(data.error || "Error al cargar PDF");
+        throw new Error(JSON.stringify(data));
       }
 
       setUploadStatus(
         `PDF cargado: ${data.filename} | Páginas: ${data.pages} | Chunks: ${data.chunks}`
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error);
-      setUploadStatus("Error cargando PDF");
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Error desconocido al cargar PDF";
+
+      setUploadStatus(`Error cargando PDF: ${message}`);
     }
   }
 
@@ -140,13 +146,19 @@ export default function Home() {
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        throw new Error(data.error || "Error consultando PDF");
+        throw new Error(JSON.stringify(data));
       }
 
       setPdfAnswer(data.answer);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error);
-      setPdfAnswer("Error consultando PDF");
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Error desconocido al consultar PDF";
+
+      setPdfAnswer(`Error consultando PDF: ${message}`);
     }
 
     setPdfQuestion("");
@@ -239,7 +251,9 @@ export default function Home() {
             {pdfAnswer && (
               <div className="rounded-2xl bg-slate-100 p-4 text-slate-900">
                 <h2 className="mb-2 font-semibold">Respuesta del PDF:</h2>
-                <p className="whitespace-pre-wrap leading-relaxed">{pdfAnswer}</p>
+                <p className="whitespace-pre-wrap leading-relaxed">
+                  {pdfAnswer}
+                </p>
               </div>
             )}
           </div>

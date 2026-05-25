@@ -23,6 +23,7 @@ export default function Home() {
   const [loadingChat, setLoadingChat] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [loadingReview, setLoadingReview] = useState(false);
+  const [loadingExport, setLoadingExport] = useState(false);
 
   async function sendMessage() {
     if (!message.trim()) return;
@@ -47,10 +48,10 @@ export default function Home() {
 
       setChatResponse(data.response || "Sin respuesta");
     } catch (error: unknown) {
-      const message =
+      const msg =
         error instanceof Error ? error.message : "Error desconocido";
 
-      setChatResponse(`Error conectando con la IA: ${message}`);
+      setChatResponse(`Error conectando con la IA: ${msg}`);
     }
 
     setLoadingChat(false);
@@ -81,10 +82,10 @@ export default function Home() {
         `PDF cargado: ${data.filename} | Páginas: ${data.pages} | Chunks: ${data.chunks}`
       );
     } catch (error: unknown) {
-      const message =
+      const msg =
         error instanceof Error ? error.message : "Error desconocido";
 
-      setUploadStatus(`Error cargando PDF: ${message}`);
+      setUploadStatus(`Error cargando PDF: ${msg}`);
     }
   }
 
@@ -113,10 +114,10 @@ export default function Home() {
       setPdfResponse(data.answer || "Sin respuesta");
       setPdfSources(data.sources || []);
     } catch (error: unknown) {
-      const message =
+      const msg =
         error instanceof Error ? error.message : "Error desconocido";
 
-      setPdfResponse(`Error consultando PDF: ${message}`);
+      setPdfResponse(`Error consultando PDF: ${msg}`);
     }
 
     setLoadingPdf(false);
@@ -139,13 +140,56 @@ export default function Home() {
 
       setArticleReview(data.review || "No se generó dictamen.");
     } catch (error: unknown) {
-      const message =
+      const msg =
         error instanceof Error ? error.message : "Error desconocido";
 
-      setArticleReview(`Error generando dictamen: ${message}`);
+      setArticleReview(`Error generando dictamen: ${msg}`);
     }
 
     setLoadingReview(false);
+  }
+
+  async function exportReview() {
+    if (!articleReview) {
+      alert("Primero debes generar un dictamen académico.");
+      return;
+    }
+
+    setLoadingExport(true);
+
+    try {
+      const response = await fetch(`${API_URL}/export-review`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo exportar el dictamen");
+      }
+
+      const blob = await response.blob();
+
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+
+      a.href = url;
+      a.download = "dictamen_academico.docx";
+
+      document.body.appendChild(a);
+
+      a.click();
+
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error ? error.message : "Error desconocido";
+
+      alert(`Error exportando dictamen: ${msg}`);
+    }
+
+    setLoadingExport(false);
   }
 
   function clearChat() {
@@ -174,9 +218,8 @@ export default function Home() {
           </h1>
 
           <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-600">
-            Asistente inteligente para análisis documental, consulta de PDFs,
-            búsqueda semántica, RAG y dictamen académico de artículos
-            científicos.
+            Plataforma inteligente para revisión académica, análisis documental,
+            RAG y arbitraje científico asistido por IA.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -200,6 +243,7 @@ export default function Home() {
         </header>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          {/* CHAT */}
           <section className="flex h-[78vh] flex-col rounded-3xl border border-slate-200 bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 p-6">
               <div>
@@ -214,28 +258,15 @@ export default function Home() {
 
               <button
                 onClick={clearChat}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
               >
                 Limpiar
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              {!chatResponse && !loadingChat && (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-slate-500">
-                  Escribe una pregunta general para conversar con el asistente.
-                </div>
-              )}
-
-              {loadingChat && (
-                <div className="rounded-2xl bg-slate-100 p-4 text-slate-600">
-                  Generando respuesta...
-                </div>
-              )}
-
               {chatResponse && (
-                <div className="rounded-2xl bg-slate-100 p-5 text-slate-900">
-                  <h3 className="mb-2 font-semibold">Respuesta:</h3>
+                <div className="rounded-2xl bg-slate-100 p-5">
                   <p className="whitespace-pre-wrap leading-relaxed">
                     {chatResponse}
                   </p>
@@ -246,7 +277,7 @@ export default function Home() {
             <div className="border-t border-slate-200 p-6">
               <div className="flex flex-col gap-4">
                 <textarea
-                  className="rounded-2xl border border-slate-300 p-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-700"
+                  className="rounded-2xl border border-slate-300 p-4"
                   rows={3}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -256,7 +287,7 @@ export default function Home() {
                 <button
                   onClick={sendMessage}
                   disabled={loadingChat}
-                  className="rounded-2xl bg-slate-950 px-6 py-3 font-semibold text-white transition hover:bg-slate-800 disabled:bg-slate-400"
+                  className="rounded-2xl bg-slate-950 px-6 py-3 font-semibold text-white"
                 >
                   {loadingChat ? "Generando..." : "Enviar"}
                 </button>
@@ -264,6 +295,7 @@ export default function Home() {
             </div>
           </section>
 
+          {/* PDF */}
           <section className="flex h-[78vh] flex-col rounded-3xl border border-slate-200 bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 p-6">
               <div>
@@ -278,31 +310,25 @@ export default function Home() {
 
               <button
                 onClick={clearPDF}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
               >
                 Limpiar
               </button>
             </div>
 
             <div className="space-y-4 overflow-y-auto p-6">
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5">
-                <label className="mb-2 block font-semibold text-slate-700">
-                  Subir artículo o documento PDF
-                </label>
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
 
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-
-                    if (file) {
-                      uploadPDF(file);
-                    }
-                  }}
-                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-slate-900"
-                />
-              </div>
+                  if (file) {
+                    uploadPDF(file);
+                  }
+                }}
+                className="w-full rounded-xl border border-slate-300 bg-white p-3"
+              />
 
               {uploadStatus && (
                 <div className="rounded-2xl bg-emerald-100 p-4 text-emerald-800">
@@ -311,7 +337,7 @@ export default function Home() {
               )}
 
               <textarea
-                className="w-full rounded-2xl border border-slate-300 p-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-700"
+                className="w-full rounded-2xl border border-slate-300 p-4"
                 rows={4}
                 value={pdfQuestion}
                 onChange={(e) => setPdfQuestion(e.target.value)}
@@ -321,7 +347,7 @@ export default function Home() {
               <button
                 onClick={askPDF}
                 disabled={loadingPdf}
-                className="w-full rounded-2xl bg-slate-950 px-6 py-3 font-semibold text-white transition hover:bg-slate-800 disabled:bg-slate-400"
+                className="w-full rounded-2xl bg-slate-950 px-6 py-3 font-semibold text-white"
               >
                 {loadingPdf ? "Consultando..." : "Preguntar al PDF"}
               </button>
@@ -329,70 +355,50 @@ export default function Home() {
               <button
                 onClick={reviewArticle}
                 disabled={loadingReview}
-                className="w-full rounded-2xl border border-slate-900 bg-white px-6 py-3 font-semibold text-slate-900 transition hover:bg-slate-100 disabled:border-slate-300 disabled:text-slate-400"
+                className="w-full rounded-2xl border border-slate-900 bg-white px-6 py-3 font-semibold text-slate-900"
               >
-                {loadingReview ? "Dictaminando..." : "Dictaminar artículo"}
+                {loadingReview
+                  ? "Dictaminando..."
+                  : "Dictaminar artículo"}
               </button>
 
               {pdfResponse && (
-                <div className="rounded-2xl bg-slate-100 p-5 text-slate-900">
-                  <h3 className="mb-2 font-semibold">Respuesta del PDF:</h3>
+                <div className="rounded-2xl bg-slate-100 p-5">
                   <p className="whitespace-pre-wrap leading-relaxed">
                     {pdfResponse}
                   </p>
                 </div>
               )}
-
-              {pdfSources.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-slate-900">
-                    Fuentes consultadas:
-                  </h3>
-
-                  {pdfSources.map((source, index) => (
-                    <div
-                      key={index}
-                      className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm"
-                    >
-                      <p className="font-medium text-slate-900">
-                        Página {source.page + 1}
-                      </p>
-
-                      <p className="mt-2 text-slate-600">
-                        {source.content}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </section>
 
+          {/* REVIEW */}
           <section className="flex h-[78vh] flex-col rounded-3xl border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-200 p-6">
-              <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                Academic Peer Review
-              </p>
+            <div className="flex items-center justify-between border-b border-slate-200 p-6">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+                  Academic Peer Review
+                </p>
 
-              <h2 className="mt-1 text-3xl font-bold text-slate-900">
-                Dictamen académico
-              </h2>
+                <h2 className="mt-1 text-3xl font-bold text-slate-900">
+                  Dictamen académico
+                </h2>
+              </div>
+
+              <button
+                onClick={exportReview}
+                disabled={loadingExport}
+                className="rounded-xl border border-slate-900 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-100"
+              >
+                {loadingExport
+                  ? "Exportando..."
+                  : "Exportar Word"}
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              {!articleReview && !loadingReview && (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-slate-500">
-                  Sube un artículo en PDF y presiona “Dictaminar artículo” para
-                  generar una evaluación académica profesional.
-                </div>
-              )}
-
               {articleReview && (
-                <div className="rounded-2xl bg-slate-100 p-5 text-slate-900">
-                  <h3 className="mb-3 font-semibold">
-                    Resultado del dictamen:
-                  </h3>
-
+                <div className="rounded-2xl bg-slate-100 p-5">
                   <p className="whitespace-pre-wrap leading-relaxed">
                     {articleReview}
                   </p>

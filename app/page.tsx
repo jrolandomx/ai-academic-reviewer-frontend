@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
 interface Source {
@@ -9,6 +9,64 @@ interface Source {
 }
 
 const API_URL = "https://ai-chat-api-rag.onrender.com";
+
+const reviewSections = [
+  {
+    id: "badge",
+    label: "Badge editorial",
+    keyword: "Badge de dictamen editorial",
+  },
+  {
+    id: "score",
+    label: "Score general",
+    keyword: "Score general del artículo",
+  },
+  {
+    id: "metodologia",
+    label: "Revisión metodológica",
+    keyword: "Revisión metodológica",
+  },
+  {
+    id: "teorica",
+    label: "Revisión teórica",
+    keyword: "Revisión teórica",
+  },
+  {
+    id: "editorial",
+    label: "Revisión editorial",
+    keyword: "Revisión editorial y de redacción",
+  },
+  {
+    id: "apa",
+    label: "APA y formato",
+    keyword: "Revisión APA y formato",
+  },
+  {
+    id: "tabla",
+    label: "Tabla observaciones",
+    keyword: "Tabla sintética de observaciones",
+  },
+  {
+    id: "fortalezas",
+    label: "Fortalezas",
+    keyword: "Fortalezas",
+  },
+  {
+    id: "debilidades",
+    label: "Debilidades",
+    keyword: "Debilidades",
+  },
+  {
+    id: "recomendaciones",
+    label: "Recomendaciones",
+    keyword: "Recomendaciones concretas",
+  },
+  {
+    id: "dictamen",
+    label: "Dictamen final",
+    keyword: "Dictamen final del editor en jefe",
+  },
+];
 
 export default function Home() {
   const [message, setMessage] = useState("");
@@ -30,6 +88,40 @@ export default function Home() {
 
   const [loadingWord, setLoadingWord] = useState(false);
   const [loadingPDFExport, setLoadingPDFExport] = useState(false);
+
+  const detectedBadge = useMemo(() => {
+    const text = articleReview.toLowerCase();
+
+    if (text.includes("rechazado")) {
+      return {
+        label: "Rechazado",
+        className: "bg-red-100 text-red-700 border-red-300",
+      };
+    }
+
+    if (text.includes("requiere cambios mayores")) {
+      return {
+        label: "Requiere cambios mayores",
+        className: "bg-amber-100 text-amber-700 border-amber-300",
+      };
+    }
+
+    if (text.includes("aceptado con cambios menores")) {
+      return {
+        label: "Aceptado con cambios menores",
+        className: "bg-blue-100 text-blue-700 border-blue-300",
+      };
+    }
+
+    if (text.includes("aceptado sin cambios")) {
+      return {
+        label: "Aceptado sin cambios",
+        className: "bg-emerald-100 text-emerald-700 border-emerald-300",
+      };
+    }
+
+    return null;
+  }, [articleReview]);
 
   async function sendMessage() {
     if (!message.trim()) return;
@@ -201,9 +293,33 @@ export default function Home() {
     setUploadStatus("");
   }
 
+  function scrollToSection(keyword: string) {
+    const element = document.getElementById(keyword);
+
+    if (element) {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }
+
+  const reviewWithAnchors = useMemo(() => {
+    let content = articleReview;
+
+    reviewSections.forEach((section) => {
+      content = content.replace(
+        `# ${section.keyword}`,
+        `<div id="${section.keyword}"></div>\n# ${section.keyword}`
+      );
+    });
+
+    return content;
+  }, [articleReview]);
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 p-6 text-slate-900">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-[1800px]">
         <header className="mb-8 rounded-3xl bg-white p-8 shadow-xl">
           <p className="mb-2 text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">
             Instituto de Investigaciones en Contaduría
@@ -219,181 +335,211 @@ export default function Home() {
           </p>
         </header>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          <section className="flex h-[78vh] flex-col rounded-3xl bg-white shadow-xl">
-            <div className="border-b border-slate-200 p-6">
-              <h2 className="text-3xl font-bold">AI Chat</h2>
+        <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[320px_1fr]">
+          {/* SIDEBAR */}
+          <aside className="rounded-3xl bg-white p-6 shadow-xl">
+            <h2 className="mb-6 text-2xl font-bold">
+              Navegación académica
+            </h2>
+
+            <div className="space-y-3">
+              {reviewSections.map((section) => (
+                <button
+                  key={section.id}
+                  onClick={() => scrollToSection(section.keyword)}
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-left text-sm font-medium transition hover:bg-slate-100"
+                >
+                  {section.label}
+                </button>
+              ))}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
-              {chatResponse && (
-                <div className="rounded-2xl bg-slate-100 p-5">
-                  <p className="whitespace-pre-wrap leading-relaxed">
-                    {chatResponse}
-                  </p>
+            {detectedBadge && (
+              <div
+                className={`mt-8 rounded-2xl border p-4 text-center text-sm font-semibold ${detectedBadge.className}`}
+              >
+                {detectedBadge.label}
+              </div>
+            )}
+          </aside>
+
+          {/* MAIN */}
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            {/* CHAT */}
+            <section className="flex h-[78vh] flex-col rounded-3xl bg-white shadow-xl">
+              <div className="border-b border-slate-200 p-6">
+                <h2 className="text-3xl font-bold">AI Chat</h2>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                {chatResponse && (
+                  <div className="rounded-2xl bg-slate-100 p-5">
+                    <p className="whitespace-pre-wrap leading-relaxed">
+                      {chatResponse}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-200 p-6">
+                <div className="flex flex-col gap-4">
+                  <textarea
+                    className="rounded-2xl border border-slate-300 p-4"
+                    rows={3}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Escribe tu pregunta..."
+                  />
+
+                  <button
+                    onClick={sendMessage}
+                    className="rounded-2xl bg-slate-950 px-6 py-3 font-semibold text-white"
+                  >
+                    {loadingChat ? "Generando..." : "Enviar"}
+                  </button>
                 </div>
-              )}
-            </div>
+              </div>
+            </section>
 
-            <div className="border-t border-slate-200 p-6">
-              <div className="flex flex-col gap-4">
-                <textarea
-                  className="rounded-2xl border border-slate-300 p-4"
-                  rows={3}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Escribe tu pregunta..."
-                />
+            {/* PDF */}
+            <section className="flex h-[78vh] flex-col rounded-3xl bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b border-slate-200 p-6">
+                <h2 className="text-3xl font-bold">
+                  PDF Intelligence
+                </h2>
 
                 <button
-                  onClick={sendMessage}
-                  className="rounded-2xl bg-slate-950 px-6 py-3 font-semibold text-white"
+                  onClick={clearAll}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm"
                 >
-                  {loadingChat ? "Generando..." : "Enviar"}
+                  Limpiar
                 </button>
               </div>
-            </div>
-          </section>
 
-          <section className="flex h-[78vh] flex-col rounded-3xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-200 p-6">
-              <h2 className="text-3xl font-bold">PDF Intelligence</h2>
-
-              <button
-                onClick={clearAll}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm"
-              >
-                Limpiar
-              </button>
-            </div>
-
-            <div className="space-y-4 overflow-y-auto p-6">
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-
-                  if (file) {
-                    uploadPDF(file);
-                  }
-                }}
-                className="w-full rounded-xl border border-slate-300 bg-white p-3"
-              />
-
-              {uploadStatus && (
-                <div className="rounded-2xl bg-emerald-100 p-4 text-emerald-800">
-                  {uploadStatus}
-                </div>
-              )}
-
-              <select
-                value={reviewType}
-                onChange={(e) => setReviewType(e.target.value)}
-                className="w-full rounded-2xl border border-slate-300 p-4"
-              >
-                <option>Scopus</option>
-                <option>WoS</option>
-                <option>CONAHCYT</option>
-                <option>Latindex</option>
-                <option>Tesis doctoral</option>
-                <option>Tesis maestría</option>
-              </select>
-
-              <label className="flex items-center gap-3">
+              <div className="space-y-4 overflow-y-auto p-6">
                 <input
-                  type="checkbox"
-                  checked={blindReview}
-                  onChange={(e) => setBlindReview(e.target.checked)}
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+
+                    if (file) {
+                      uploadPDF(file);
+                    }
+                  }}
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3"
                 />
 
-                <span>Aplicar revisión ciega</span>
-              </label>
+                {uploadStatus && (
+                  <div className="rounded-2xl bg-emerald-100 p-4 text-emerald-800">
+                    {uploadStatus}
+                  </div>
+                )}
 
-              <textarea
-                className="w-full rounded-2xl border border-slate-300 p-4"
-                rows={4}
-                value={pdfQuestion}
-                onChange={(e) => setPdfQuestion(e.target.value)}
-                placeholder="Pregunta algo sobre el PDF..."
-              />
-
-              <button
-                onClick={askPDF}
-                className="w-full rounded-2xl bg-slate-950 px-6 py-3 font-semibold text-white"
-              >
-                {loadingPdf ? "Consultando..." : "Preguntar al PDF"}
-              </button>
-
-              <button
-                onClick={reviewArticle}
-                className="w-full rounded-2xl border border-slate-900 bg-white px-6 py-3 font-semibold"
-              >
-                {loadingReview ? "Dictaminando..." : "Dictaminar artículo"}
-              </button>
-
-              {pdfResponse && (
-                <div className="rounded-2xl bg-slate-100 p-5">
-                  <p className="whitespace-pre-wrap leading-relaxed">
-                    {pdfResponse}
-                  </p>
-                </div>
-              )}
-
-              {pdfSources.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="font-semibold">Fuentes consultadas</h3>
-
-                  {pdfSources.map((source, index) => (
-                    <div
-                      key={index}
-                      className="rounded-2xl border border-slate-200 bg-white p-4"
-                    >
-                      <p className="font-medium">Página {source.page + 1}</p>
-
-                      <p className="mt-2 text-sm text-slate-600">
-                        {source.content}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="flex h-[78vh] flex-col rounded-3xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-200 p-6">
-              <h2 className="text-3xl font-bold">Dictamen académico</h2>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={exportWord}
-                  className="rounded-xl border border-slate-900 px-4 py-2 text-sm"
+                <select
+                  value={reviewType}
+                  onChange={(e) =>
+                    setReviewType(e.target.value)
+                  }
+                  className="w-full rounded-2xl border border-slate-300 p-4"
                 >
-                  {loadingWord ? "..." : "Word"}
+                  <option>Scopus</option>
+                  <option>WoS</option>
+                  <option>CONAHCYT</option>
+                  <option>Latindex</option>
+                  <option>Tesis doctoral</option>
+                  <option>Tesis maestría</option>
+                </select>
+
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={blindReview}
+                    onChange={(e) =>
+                      setBlindReview(e.target.checked)
+                    }
+                  />
+
+                  <span>Aplicar revisión ciega</span>
+                </label>
+
+                <textarea
+                  className="w-full rounded-2xl border border-slate-300 p-4"
+                  rows={4}
+                  value={pdfQuestion}
+                  onChange={(e) =>
+                    setPdfQuestion(e.target.value)
+                  }
+                  placeholder="Pregunta algo sobre el PDF..."
+                />
+
+                <button
+                  onClick={askPDF}
+                  className="w-full rounded-2xl bg-slate-950 px-6 py-3 font-semibold text-white"
+                >
+                  {loadingPdf
+                    ? "Consultando..."
+                    : "Preguntar al PDF"}
                 </button>
 
                 <button
-                  onClick={exportPDF}
-                  className="rounded-xl border border-slate-900 px-4 py-2 text-sm"
+                  onClick={reviewArticle}
+                  className="w-full rounded-2xl border border-slate-900 bg-white px-6 py-3 font-semibold"
                 >
-                  {loadingPDFExport ? "..." : "PDF"}
+                  {loadingReview
+                    ? "Dictaminando..."
+                    : "Dictaminar artículo"}
                 </button>
+
+                {pdfResponse && (
+                  <div className="rounded-2xl bg-slate-100 p-5">
+                    <p className="whitespace-pre-wrap leading-relaxed">
+                      {pdfResponse}
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
+            </section>
 
-            <div className="flex-1 overflow-y-auto p-6">
-              {articleReview ? (
-                <article className="prose prose-slate max-w-none">
-                  <ReactMarkdown>{articleReview}</ReactMarkdown>
-                </article>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-slate-500">
-                  Sube un artículo PDF y genera un dictamen académico.
+            {/* REVIEW */}
+            <section className="flex h-[78vh] flex-col rounded-3xl bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b border-slate-200 p-6">
+                <h2 className="text-3xl font-bold">
+                  Dictamen académico
+                </h2>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={exportWord}
+                    className="rounded-xl border border-slate-900 px-4 py-2 text-sm"
+                  >
+                    {loadingWord ? "..." : "Word"}
+                  </button>
+
+                  <button
+                    onClick={exportPDF}
+                    className="rounded-xl border border-slate-900 px-4 py-2 text-sm"
+                  >
+                    {loadingPDFExport ? "..." : "PDF"}
+                  </button>
                 </div>
-              )}
-            </div>
-          </section>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                {articleReview ? (
+                  <article className="prose prose-slate max-w-none">
+                    <ReactMarkdown>
+                      {reviewWithAnchors}
+                    </ReactMarkdown>
+                  </article>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-slate-500">
+                    Sube un artículo PDF y genera un dictamen académico.
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
         </div>
       </div>
     </main>

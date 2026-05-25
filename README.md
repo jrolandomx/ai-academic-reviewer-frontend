@@ -1,134 +1,307 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Academic Reviewer Frontend
 
-## Getting Started
+Frontend oficial de la plataforma inteligente para revisión académica, análisis documental y arbitraje científico asistido por inteligencia artificial.
 
-First, run the development server:
+Desarrollado para:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-# AI Academic Assistant Frontend
-
-Frontend built with Next.js, React and Tailwind CSS for interacting with an AI backend powered by FastAPI and OpenAI.
+**Instituto de Investigaciones en Contaduría**  
+**Universidad Veracruzana**
 
 ---
 
-## Features
+# Overview
 
-- Conversational AI chat UI
-- Streaming responses
-- PDF upload interface
-- Ask questions about uploaded PDFs
-- Modern responsive interface
-- ChatGPT-style experience
+AI Academic Reviewer Frontend es una aplicación desarrollada con Next.js y React que proporciona una interfaz moderna para:
+
+- revisión académica asistida por IA,
+- arbitraje científico,
+- análisis de artículos PDF,
+- exportación de dictámenes,
+- navegación editorial inteligente.
+
+La plataforma consume un backend desarrollado en FastAPI conectado con OpenAI, LangChain y FAISS.
 
 ---
 
-## Tech Stack
+# Main Features
+
+## Academic Peer Review Interface
+
+- Generación de dictámenes académicos
+- Navegación lateral por secciones
+- Visualización de observaciones
+- Badge editorial automático
+- Score académico
+- Revisión metodológica
+- Revisión teórica
+- Revisión editorial
+- Revisión APA
+
+---
+
+## PDF Intelligence
+
+- Subida de artículos PDF
+- Consulta inteligente del documento
+- Búsqueda semántica
+- RAG (Retrieval-Augmented Generation)
+
+---
+
+## Blind Review
+
+- Activación de revisión ciega
+- Simulación de arbitraje académico real
+
+---
+
+## Supported Review Types
+
+- Scopus
+- WoS
+- CONAHCYT
+- Latindex
+- Tesis doctoral
+- Tesis maestría
+
+---
+
+## Export Features
+
+- Exportar dictamen a Word (.docx)
+- Exportar dictamen a PDF
+
+---
+
+# Tech Stack
 
 - Next.js
 - React
 - TypeScript
-- Tailwind CSS
-- Fetch API
+- TailwindCSS
+- React Markdown
 
 ---
 
-## Run locally
+# Frontend Architecture
+
+```text
+Frontend UI
+    ↓
+API Requests
+    ↓
+FastAPI Backend
+    ↓
+OpenAI + LangChain + FAISS
+```
+
+---
+
+# Project Structure
+
+```text
+app/
+ └── page.tsx
+
+public/
+
+package.json
+tailwind.config.ts
+tsconfig.json
+next.config.js
+```
+
+---
+
+# Installation
+
+## Clone repository
+
+```bash
+git clone https://github.com/jrolandomx/ai-chat-frontend.git
+```
+
+---
+
+## Enter project folder
+
+```bash
+cd ai-chat-frontend
+```
+
+---
+
+## Install dependencies
 
 ```bash
 npm install
+```
+
+---
+
+## Install markdown renderer
+
+```bash
+npm install react-markdown
+```
+
+---
+
+# Run Development Server
+
+```bash
 npm run dev
 ```
 
----
-
-## Backend Requirement
-
-This frontend requires the backend API running locally:
+Application runs on:
 
 ```text
-http://127.0.0.1:8000
+http://localhost:3000
 ```
 
 ---
 
-## Main Features
+# Environment Configuration
 
-### AI Chat
-- Conversational assistant
-- Streaming responses
-- Context-aware interaction
+Edit API URL inside:
 
-### PDF RAG
-- Upload PDF files
-- Semantic search
-- Retrieval-Augmented Generation
-- Contextual document Q&A
+```text
+app/page.tsx
+```
+
+```ts
+const API_URL = "https://your-backend-url.onrender.com";
+```
 
 ---
 
-## Future Improvements
+# Main Functionalities
 
-- Authentication
-- Persistent chat history
-- Multi-PDF support
+## AI Chat
+
+General AI assistant powered by OpenAI.
+
+---
+
+## PDF Upload
+
+Upload academic articles and scientific documents.
+
+---
+
+## Ask PDF
+
+Ask questions directly about uploaded documents.
+
+---
+
+## Academic Review
+
+Generate:
+
+- methodological review,
+- theoretical review,
+- editorial review,
+- APA review,
+- final editorial decision.
+
+---
+
+## Sidebar Navigation
+
+Navigate through:
+
+- methodological observations,
+- theoretical observations,
+- editorial observations,
+- APA observations,
+- strengths,
+- weaknesses,
+- recommendations,
+- final decision.
+
+---
+
+## Export Review
+
+Download academic review as:
+
+- Word document
+- PDF document
+
+---
+
+# UI Features
+
+- Responsive layout
+- Editorial-style interface
+- Academic sidebar navigation
+- Markdown rendering
+- Scrollable sections
+- Modern academic design
+
+---
+
+# Deployment
+
+## Recommended Frontend Hosting
+
+- Vercel
+
+---
+
+# Recommended Backend Hosting
+
+- Render
+
+---
+
+# Production Build
+
+```bash
+npm run build
+```
+
+---
+
+# Future Improvements
+
 - Dark mode
-- Deploy to Vercel
-- Multi-agent workflows
+- Authentication
+- Reviewer dashboard
+- Review history
+- Collaborative review
+- ORCID integration
+- Database integration
+- Citation validation
+- AI detection module
 
 ---
 
-## Academic Reviewer Agent
+# Academic Purpose
 
-The application includes an AI-powered academic reviewer agent that evaluates scientific articles uploaded as PDF files.
+This frontend was designed for:
 
-It provides:
+- scientific article review,
+- editorial processes,
+- thesis evaluation,
+- academic analysis,
+- institutional research support.
 
-- General observations
-- Methodological observations
-- Theoretical observations
-- Writing and editorial observations
-- APA/reference observations
-- Strengths and weaknesses
-- Concrete recommendations
-- Final editorial decision
-- Export academic review as Word document
+---
 
-## Live Demo
+# Institutional Version
 
-Frontend: https://ai-chat-frontend-one.vercel.app  
-Backend API: https://ai-chat-api-rag.onrender.com
+Developed for:
 
-## Author
+**Instituto de Investigaciones en Contaduría**  
+**Universidad Veracruzana**
 
-Rolando Ramirez  
-GitHub: https://github.com/jrolandomx
+---
+
+# Author
+
+Rolando Ramirez Rueda
+
+GitHub:
+https://github.com/jrolandomx

@@ -206,21 +206,20 @@ export default function Home() {
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 rounded-3xl bg-white p-8 shadow-xl">
           <p className="mb-2 text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">
-            AI Scientific Review Platform
+            Instituto de Investigaciones en Contaduría
           </p>
 
           <h1 className="text-5xl font-bold tracking-tight text-slate-950">
-            AI Academic Reviewer
+            Universidad Veracruzana
           </h1>
 
           <p className="mt-4 max-w-4xl text-lg leading-relaxed text-slate-600">
-            Plataforma inteligente para arbitraje académico, revisión científica,
-            análisis metodológico y generación automática de dictámenes.
+            Plataforma inteligente para la revisión académica, análisis
+            documental, y arbitraje científico asistido por IA
           </p>
         </header>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          {/* CHAT */}
           <section className="flex h-[78vh] flex-col rounded-3xl bg-white shadow-xl">
             <div className="border-b border-slate-200 p-6">
               <h2 className="text-3xl font-bold">AI Chat</h2>
@@ -256,7 +255,6 @@ export default function Home() {
             </div>
           </section>
 
-          {/* PDF */}
           <section className="flex h-[78vh] flex-col rounded-3xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 p-6">
               <h2 className="text-3xl font-bold">PDF Intelligence</h2>
@@ -331,19 +329,41 @@ export default function Home() {
                 onClick={reviewArticle}
                 className="w-full rounded-2xl border border-slate-900 bg-white px-6 py-3 font-semibold"
               >
-                {loadingReview
-                  ? "Dictaminando..."
-                  : "Dictaminar artículo"}
+                {loadingReview ? "Dictaminando..." : "Dictaminar artículo"}
               </button>
+
+              {pdfResponse && (
+                <div className="rounded-2xl bg-slate-100 p-5">
+                  <p className="whitespace-pre-wrap leading-relaxed">
+                    {pdfResponse}
+                  </p>
+                </div>
+              )}
+
+              {pdfSources.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="font-semibold">Fuentes consultadas</h3>
+
+                  {pdfSources.map((source, index) => (
+                    <div
+                      key={index}
+                      className="rounded-2xl border border-slate-200 bg-white p-4"
+                    >
+                      <p className="font-medium">Página {source.page + 1}</p>
+
+                      <p className="mt-2 text-sm text-slate-600">
+                        {source.content}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
 
-          {/* REVIEW */}
           <section className="flex h-[78vh] flex-col rounded-3xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 p-6">
-              <h2 className="text-3xl font-bold">
-                Dictamen académico
-              </h2>
+              <h2 className="text-3xl font-bold">Dictamen académico</h2>
 
               <div className="flex gap-2">
                 <button
@@ -365,9 +385,7 @@ export default function Home() {
             <div className="flex-1 overflow-y-auto p-6">
               {articleReview ? (
                 <article className="prose prose-slate max-w-none">
-                  <ReactMarkdown>
-                    {articleReview}
-                  </ReactMarkdown>
+                  <ReactMarkdown>{articleReview}</ReactMarkdown>
                 </article>
               ) : (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-slate-500">

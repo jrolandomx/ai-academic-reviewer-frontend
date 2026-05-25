@@ -2,125 +2,85 @@
 
 import { useState } from "react";
 
-interface Message {
-  role: string;
+interface Source {
+  page: number;
   content: string;
 }
 
 const API_URL = "https://ai-chat-api-rag.onrender.com";
 
 export default function Home() {
-  const [prompt, setPrompt] = useState("");
+  const [message, setMessage] = useState("");
+  const [chatResponse, setChatResponse] = useState("");
+
   const [pdfQuestion, setPdfQuestion] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [pdfAnswer, setPdfAnswer] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [pdfResponse, setPdfResponse] = useState("");
+  const [pdfSources, setPdfSources] = useState<Source[]>([]);
+
   const [uploadStatus, setUploadStatus] = useState("");
+  const [loadingChat, setLoadingChat] = useState(false);
+  const [loadingPdf, setLoadingPdf] = useState(false);
 
   async function sendMessage() {
-    if (!prompt.trim()) return;
+    if (!message.trim()) return;
 
-    const userMessage: Message = {
-      role: "user",
-      content: prompt,
-    };
-
-    const assistantMessage: Message = {
-      role: "assistant",
-      content: "",
-    };
-
-    setMessages((prev) => [...prev, userMessage, assistantMessage]);
-    setLoading(true);
+    setLoadingChat(true);
+    setChatResponse("");
 
     try {
-      const res = await fetch(`${API_URL}/chat-stream`, {
+      const response = await fetch(`${API_URL}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({
+          prompt: message,
+        }),
       });
 
-      if (!res.ok || !res.body) {
-        throw new Error("Error en la respuesta del servidor");
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Error desconocido");
       }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        fullResponse += chunk;
-
-        setMessages((prev) => {
-          const updated = [...prev];
-
-          updated[updated.length - 1] = {
-            role: "assistant",
-            content: fullResponse,
-          };
-
-          return updated;
-        });
-      }
+      setChatResponse(data.response || "Sin respuesta");
     } catch (error: unknown) {
-      console.error(error);
+      const message =
+        error instanceof Error ? error.message : "Error desconocido";
 
-      setMessages((prev) => {
-        const updated = [...prev];
-
-        updated[updated.length - 1] = {
-          role: "assistant",
-          content: "Error conectando con el backend.",
-        };
-
-        return updated;
-      });
+      setChatResponse(`Error conectando con la IA: ${message}`);
     }
 
-    setPrompt("");
-    setLoading(false);
+    setLoadingChat(false);
   }
 
-  async function uploadPDF(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    setUploadStatus("Procesando PDF...");
-    setPdfAnswer("");
+  async function uploadPDF(file: File) {
+    setUploadStatus("Subiendo PDF...");
+    setPdfResponse("");
+    setPdfSources([]);
 
     try {
-      const res = await fetch(`${API_URL}/upload-pdf`, {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(`${API_URL}/upload-pdf`, {
         method: "POST",
         body: formData,
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (!res.ok || data.error) {
-        throw new Error(JSON.stringify(data));
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Error desconocido");
       }
 
       setUploadStatus(
         `PDF cargado: ${data.filename} | Páginas: ${data.pages} | Chunks: ${data.chunks}`
       );
     } catch (error: unknown) {
-      console.error(error);
-
       const message =
-        error instanceof Error
-          ? error.message
-          : "Error desconocido al cargar PDF";
+        error instanceof Error ? error.message : "Error desconocido";
 
       setUploadStatus(`Error cargando PDF: ${message}`);
     }
@@ -129,11 +89,12 @@ export default function Home() {
   async function askPDF() {
     if (!pdfQuestion.trim()) return;
 
-    setLoading(true);
-    setPdfAnswer("Consultando PDF...");
+    setLoadingPdf(true);
+    setPdfResponse("Consultando PDF...");
+    setPdfSources([]);
 
     try {
-      const res = await fetch(`${API_URL}/ask-pdf`, {
+      const response = await fetch(`${API_URL}/ask-pdf`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -143,26 +104,22 @@ export default function Home() {
         }),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (!res.ok || data.error) {
-        throw new Error(JSON.stringify(data));
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Error desconocido");
       }
 
-      setPdfAnswer(data.answer);
+      setPdfResponse(data.answer || "Sin respuesta");
+      setPdfSources(data.sources || []);
     } catch (error: unknown) {
-      console.error(error);
-
       const message =
-        error instanceof Error
-          ? error.message
-          : "Error desconocido al consultar PDF";
+        error instanceof Error ? error.message : "Error desconocido";
 
-      setPdfAnswer(`Error consultando PDF: ${message}`);
+      setPdfResponse(`Error consultando PDF: ${message}`);
     }
 
-    setPdfQuestion("");
-    setLoading(false);
+    setLoadingPdf(false);
   }
 
   return (
@@ -173,23 +130,19 @@ export default function Home() {
             <h1 className="text-3xl font-bold text-slate-900">AI Chat</h1>
           </div>
 
-          <div className="flex-1 space-y-4 overflow-y-auto p-6">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed ${
-                  message.role === "user"
-                    ? "ml-auto bg-black text-white"
-                    : "bg-slate-200 text-slate-900"
-                }`}
-              >
-                {message.content}
-              </div>
-            ))}
-
-            {loading && (
-              <div className="max-w-[80%] rounded-2xl bg-slate-100 p-4 text-slate-600">
+          <div className="flex-1 overflow-y-auto p-6">
+            {loadingChat && (
+              <div className="rounded-2xl bg-slate-100 p-4 text-slate-600">
                 Generando respuesta...
+              </div>
+            )}
+
+            {chatResponse && (
+              <div className="rounded-2xl bg-slate-100 p-4 text-slate-900">
+                <h2 className="mb-2 font-semibold">Respuesta:</h2>
+                <p className="whitespace-pre-wrap leading-relaxed">
+                  {chatResponse}
+                </p>
               </div>
             )}
           </div>
@@ -199,16 +152,17 @@ export default function Home() {
               <textarea
                 className="flex-1 rounded-2xl border border-slate-300 p-4 text-slate-900 placeholder:text-slate-400"
                 rows={3}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
                 placeholder="Escribe tu pregunta..."
               />
 
               <button
                 onClick={sendMessage}
-                className="rounded-2xl bg-black px-6 py-3 text-white transition hover:bg-slate-800"
+                disabled={loadingChat}
+                className="rounded-2xl bg-black px-6 py-3 text-white transition hover:bg-slate-800 disabled:bg-slate-400"
               >
-                Enviar
+                {loadingChat ? "..." : "Enviar"}
               </button>
             </div>
           </div>
@@ -223,7 +177,13 @@ export default function Home() {
             <input
               type="file"
               accept="application/pdf"
-              onChange={uploadPDF}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+
+                if (file) {
+                  uploadPDF(file);
+                }
+              }}
               className="w-full rounded-2xl border border-slate-300 p-4 text-slate-900"
             />
 
@@ -243,17 +203,40 @@ export default function Home() {
 
             <button
               onClick={askPDF}
-              className="rounded-2xl bg-black px-6 py-3 text-white transition hover:bg-slate-800"
+              disabled={loadingPdf}
+              className="rounded-2xl bg-black px-6 py-3 text-white transition hover:bg-slate-800 disabled:bg-slate-400"
             >
-              Preguntar al PDF
+              {loadingPdf ? "Consultando..." : "Preguntar al PDF"}
             </button>
 
-            {pdfAnswer && (
+            {pdfResponse && (
               <div className="rounded-2xl bg-slate-100 p-4 text-slate-900">
                 <h2 className="mb-2 font-semibold">Respuesta del PDF:</h2>
                 <p className="whitespace-pre-wrap leading-relaxed">
-                  {pdfAnswer}
+                  {pdfResponse}
                 </p>
+              </div>
+            )}
+
+            {pdfSources.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-slate-900">
+                  Fuentes consultadas:
+                </h3>
+
+                {pdfSources.map((source, index) => (
+                  <div
+                    key={index}
+                    className="rounded-2xl border border-slate-200 bg-white p-4 text-sm"
+                  >
+                    <p className="font-medium text-slate-900">
+                      Página {source.page + 1}
+                    </p>
+                    <p className="mt-2 text-slate-600">
+                      {source.content}
+                    </p>
+                  </div>
+                ))}
               </div>
             )}
           </div>

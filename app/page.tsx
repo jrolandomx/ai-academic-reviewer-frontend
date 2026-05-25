@@ -20,10 +20,15 @@ export default function Home() {
   const [articleReview, setArticleReview] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
 
+  const [reviewType, setReviewType] = useState("Scopus");
+  const [blindReview, setBlindReview] = useState(true);
+
   const [loadingChat, setLoadingChat] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [loadingReview, setLoadingReview] = useState(false);
-  const [loadingExport, setLoadingExport] = useState(false);
+
+  const [loadingWord, setLoadingWord] = useState(false);
+  const [loadingPDFExport, setLoadingPDFExport] = useState(false);
 
   async function sendMessage() {
     if (!message.trim()) return;
@@ -37,21 +42,16 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt: message }),
+        body: JSON.stringify({
+          prompt: message,
+        }),
       });
 
       const data = await response.json();
 
-      if (!response.ok || data.error) {
-        throw new Error(data.error || "Error desconocido");
-      }
-
       setChatResponse(data.response || "Sin respuesta");
-    } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : "Error desconocido";
-
-      setChatResponse(`Error conectando con la IA: ${msg}`);
+    } catch {
+      setChatResponse("Error conectando con la IA.");
     }
 
     setLoadingChat(false);
@@ -59,12 +59,11 @@ export default function Home() {
 
   async function uploadPDF(file: File) {
     setUploadStatus("Subiendo PDF...");
-    setPdfResponse("");
-    setPdfSources([]);
     setArticleReview("");
 
     try {
       const formData = new FormData();
+
       formData.append("file", file);
 
       const response = await fetch(`${API_URL}/upload-pdf`, {
@@ -74,18 +73,11 @@ export default function Home() {
 
       const data = await response.json();
 
-      if (!response.ok || data.error) {
-        throw new Error(data.error || "Error desconocido");
-      }
-
       setUploadStatus(
-        `PDF cargado: ${data.filename} | Páginas: ${data.pages} | Chunks: ${data.chunks}`
+        `PDF cargado: ${data.filename} | Páginas: ${data.pages}`
       );
-    } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : "Error desconocido";
-
-      setUploadStatus(`Error cargando PDF: ${msg}`);
+    } catch {
+      setUploadStatus("Error cargando PDF.");
     }
   }
 
@@ -93,8 +85,6 @@ export default function Home() {
     if (!pdfQuestion.trim()) return;
 
     setLoadingPdf(true);
-    setPdfResponse("Consultando PDF...");
-    setPdfSources([]);
 
     try {
       const response = await fetch(`${API_URL}/ask-pdf`, {
@@ -102,22 +92,17 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ question: pdfQuestion }),
+        body: JSON.stringify({
+          question: pdfQuestion,
+        }),
       });
 
       const data = await response.json();
 
-      if (!response.ok || data.error) {
-        throw new Error(data.error || "Error desconocido");
-      }
-
       setPdfResponse(data.answer || "Sin respuesta");
       setPdfSources(data.sources || []);
-    } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : "Error desconocido";
-
-      setPdfResponse(`Error consultando PDF: ${msg}`);
+    } catch {
+      setPdfResponse("Error consultando PDF.");
     }
 
     setLoadingPdf(false);
@@ -128,43 +113,33 @@ export default function Home() {
     setArticleReview("Generando dictamen académico...");
 
     try {
+      const formData = new FormData();
+
+      formData.append("review_type", reviewType);
+      formData.append("blind_review", String(blindReview));
+
       const response = await fetch(`${API_URL}/review-article`, {
         method: "POST",
+        body: formData,
       });
 
       const data = await response.json();
 
-      if (!response.ok || data.error) {
-        throw new Error(data.error || "Error desconocido");
-      }
-
       setArticleReview(data.review || "No se generó dictamen.");
-    } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : "Error desconocido";
-
-      setArticleReview(`Error generando dictamen: ${msg}`);
+    } catch {
+      setArticleReview("Error generando dictamen.");
     }
 
     setLoadingReview(false);
   }
 
-  async function exportReview() {
-    if (!articleReview) {
-      alert("Primero debes generar un dictamen académico.");
-      return;
-    }
-
-    setLoadingExport(true);
+  async function exportWord() {
+    setLoadingWord(true);
 
     try {
-      const response = await fetch(`${API_URL}/export-review`, {
+      const response = await fetch(`${API_URL}/export-review-word`, {
         method: "POST",
       });
-
-      if (!response.ok) {
-        throw new Error("No se pudo exportar el dictamen");
-      }
 
       const blob = await response.blob();
 
@@ -182,27 +157,50 @@ export default function Home() {
       a.remove();
 
       window.URL.revokeObjectURL(url);
-    } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : "Error desconocido";
-
-      alert(`Error exportando dictamen: ${msg}`);
+    } catch {
+      alert("Error exportando Word");
     }
 
-    setLoadingExport(false);
+    setLoadingWord(false);
   }
 
-  function clearChat() {
-    setMessage("");
-    setChatResponse("");
+  async function exportPDF() {
+    setLoadingPDFExport(true);
+
+    try {
+      const response = await fetch(`${API_URL}/export-review-pdf`, {
+        method: "POST",
+      });
+
+      const blob = await response.blob();
+
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+
+      a.href = url;
+      a.download = "dictamen_academico.pdf";
+
+      document.body.appendChild(a);
+
+      a.click();
+
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch {
+      alert("Error exportando PDF");
+    }
+
+    setLoadingPDFExport(false);
   }
 
-  function clearPDF() {
+  function clearAll() {
     setPdfQuestion("");
     setPdfResponse("");
     setPdfSources([]);
-    setUploadStatus("");
     setArticleReview("");
+    setUploadStatus("");
   }
 
   return (
@@ -210,16 +208,17 @@ export default function Home() {
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 rounded-3xl bg-white p-8 shadow-xl">
           <p className="mb-2 text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">
-            Full Stack AI Application
+            AI Scientific Review Platform
           </p>
 
-          <h1 className="text-4xl font-bold tracking-tight text-slate-950 md:text-5xl">
-            AI Academic Assistant
+          <h1 className="text-5xl font-bold tracking-tight text-slate-950">
+            AI Academic Reviewer
           </h1>
 
-          <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-600">
-            Plataforma inteligente para revisión académica, análisis documental,
-            RAG y arbitraje científico asistido por IA.
+          <p className="mt-4 max-w-4xl text-lg leading-relaxed text-slate-600">
+            Plataforma inteligente para arbitraje académico, revisión científica,
+            análisis metodológico, evaluación editorial y generación automática
+            de dictámenes académicos.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -230,7 +229,8 @@ export default function Home() {
               "LangChain",
               "FAISS",
               "RAG",
-              "Academic Reviewer",
+              "Peer Review",
+              "Scopus",
             ].map((tech) => (
               <span
                 key={tech}
@@ -244,24 +244,9 @@ export default function Home() {
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
           {/* CHAT */}
-          <section className="flex h-[78vh] flex-col rounded-3xl border border-slate-200 bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-200 p-6">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                  General Assistant
-                </p>
-
-                <h2 className="mt-1 text-3xl font-bold text-slate-900">
-                  AI Chat
-                </h2>
-              </div>
-
-              <button
-                onClick={clearChat}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-              >
-                Limpiar
-              </button>
+          <section className="flex h-[78vh] flex-col rounded-3xl bg-white shadow-xl">
+            <div className="border-b border-slate-200 p-6">
+              <h2 className="text-3xl font-bold">AI Chat</h2>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
@@ -286,7 +271,6 @@ export default function Home() {
 
                 <button
                   onClick={sendMessage}
-                  disabled={loadingChat}
                   className="rounded-2xl bg-slate-950 px-6 py-3 font-semibold text-white"
                 >
                   {loadingChat ? "Generando..." : "Enviar"}
@@ -296,21 +280,13 @@ export default function Home() {
           </section>
 
           {/* PDF */}
-          <section className="flex h-[78vh] flex-col rounded-3xl border border-slate-200 bg-white shadow-xl">
+          <section className="flex h-[78vh] flex-col rounded-3xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 p-6">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                  Document Intelligence
-                </p>
-
-                <h2 className="mt-1 text-3xl font-bold text-slate-900">
-                  Chat con PDF
-                </h2>
-              </div>
+              <h2 className="text-3xl font-bold">PDF Intelligence</h2>
 
               <button
-                onClick={clearPDF}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                onClick={clearAll}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm"
               >
                 Limpiar
               </button>
@@ -336,6 +312,29 @@ export default function Home() {
                 </div>
               )}
 
+              <select
+                value={reviewType}
+                onChange={(e) => setReviewType(e.target.value)}
+                className="w-full rounded-2xl border border-slate-300 p-4"
+              >
+                <option>Scopus</option>
+                <option>WoS</option>
+                <option>CONAHCYT</option>
+                <option>Latindex</option>
+                <option>Tesis doctoral</option>
+                <option>Tesis maestría</option>
+              </select>
+
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={blindReview}
+                  onChange={(e) => setBlindReview(e.target.checked)}
+                />
+
+                <span>Aplicar revisión ciega</span>
+              </label>
+
               <textarea
                 className="w-full rounded-2xl border border-slate-300 p-4"
                 rows={4}
@@ -346,7 +345,6 @@ export default function Home() {
 
               <button
                 onClick={askPDF}
-                disabled={loadingPdf}
                 className="w-full rounded-2xl bg-slate-950 px-6 py-3 font-semibold text-white"
               >
                 {loadingPdf ? "Consultando..." : "Preguntar al PDF"}
@@ -354,8 +352,7 @@ export default function Home() {
 
               <button
                 onClick={reviewArticle}
-                disabled={loadingReview}
-                className="w-full rounded-2xl border border-slate-900 bg-white px-6 py-3 font-semibold text-slate-900"
+                className="w-full rounded-2xl border border-slate-900 bg-white px-6 py-3 font-semibold"
               >
                 {loadingReview
                   ? "Dictaminando..."
@@ -369,39 +366,70 @@ export default function Home() {
                   </p>
                 </div>
               )}
+
+              {pdfSources.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="font-semibold">
+                    Fuentes consultadas
+                  </h3>
+
+                  {pdfSources.map((source, index) => (
+                    <div
+                      key={index}
+                      className="rounded-2xl border border-slate-200 bg-white p-4"
+                    >
+                      <p className="font-medium">
+                        Página {source.page + 1}
+                      </p>
+
+                      <p className="mt-2 text-sm text-slate-600">
+                        {source.content}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
 
           {/* REVIEW */}
-          <section className="flex h-[78vh] flex-col rounded-3xl border border-slate-200 bg-white shadow-xl">
+          <section className="flex h-[78vh] flex-col rounded-3xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 p-6">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                  Academic Peer Review
-                </p>
+              <h2 className="text-3xl font-bold">
+                Dictamen académico
+              </h2>
 
-                <h2 className="mt-1 text-3xl font-bold text-slate-900">
-                  Dictamen académico
-                </h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={exportWord}
+                  className="rounded-xl border border-slate-900 px-4 py-2 text-sm"
+                >
+                  {loadingWord
+                    ? "Exportando..."
+                    : "Word"}
+                </button>
+
+                <button
+                  onClick={exportPDF}
+                  className="rounded-xl border border-slate-900 px-4 py-2 text-sm"
+                >
+                  {loadingPDFExport
+                    ? "Exportando..."
+                    : "PDF"}
+                </button>
               </div>
-
-              <button
-                onClick={exportReview}
-                disabled={loadingExport}
-                className="rounded-xl border border-slate-900 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-100"
-              >
-                {loadingExport
-                  ? "Exportando..."
-                  : "Exportar Word"}
-              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              {articleReview && (
+              {articleReview ? (
                 <div className="rounded-2xl bg-slate-100 p-5">
                   <p className="whitespace-pre-wrap leading-relaxed">
                     {articleReview}
                   </p>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-slate-500">
+                  Sube un artículo PDF y genera un dictamen académico.
                 </div>
               )}
             </div>

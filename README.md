@@ -107,6 +107,21 @@ http://127.0.0.1:8000
 
 ---
 
+## Academic Reviewer Agent
+
+The application includes an AI-powered academic reviewer agent that evaluates scientific articles uploaded as PDF files.
+
+It provides:
+
+- General observations
+- Methodological observations
+- Theoretical observations
+- Writing and editorial observations
+- APA/reference observations
+- Strengths and weaknesses
+- Concrete recommendations
+- Final editorial decision
+
 ## Live Demo
 
 Frontend: https://ai-chat-frontend-one.vercel.app  

@@ -107,6 +107,11 @@ http://127.0.0.1:8000
 
 ---
 
+## Live Demo
+
+Frontend: https://ai-chat-frontend-one.vercel.app  
+Backend API: https://ai-chat-api-rag.onrender.com
+
 ## Author
 
 Rolando Ramirez  

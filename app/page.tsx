@@ -122,6 +122,18 @@ export default function Home() {
     setLoadingPdf(false);
   }
 
+  function clearChat() {
+    setMessage("");
+    setChatResponse("");
+  }
+
+  function clearPDF() {
+    setPdfQuestion("");
+    setPdfResponse("");
+    setPdfSources([]);
+    setUploadStatus("");
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 p-6 text-slate-900">
       <div className="mx-auto max-w-7xl">
@@ -154,14 +166,25 @@ export default function Home() {
         </header>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* ================= CHAT ================= */}
           <section className="flex h-[78vh] flex-col rounded-3xl border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-200 p-6">
-              <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                General Assistant
-              </p>
-              <h2 className="mt-1 text-3xl font-bold text-slate-900">
-                AI Chat
-              </h2>
+            <div className="flex items-center justify-between border-b border-slate-200 p-6">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+                  General Assistant
+                </p>
+
+                <h2 className="mt-1 text-3xl font-bold text-slate-900">
+                  AI Chat
+                </h2>
+              </div>
+
+              <button
+                onClick={clearChat}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+              >
+                Limpiar chat
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
@@ -209,14 +232,25 @@ export default function Home() {
             </div>
           </section>
 
+          {/* ================= PDF ================= */}
           <section className="flex h-[78vh] flex-col rounded-3xl border border-slate-200 bg-white shadow-xl">
-            <div className="border-b border-slate-200 p-6">
-              <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                Document Intelligence
-              </p>
-              <h2 className="mt-1 text-3xl font-bold text-slate-900">
-                Chat con PDF
-              </h2>
+            <div className="flex items-center justify-between border-b border-slate-200 p-6">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+                  Document Intelligence
+                </p>
+
+                <h2 className="mt-1 text-3xl font-bold text-slate-900">
+                  Chat con PDF
+                </h2>
+              </div>
+
+              <button
+                onClick={clearPDF}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+              >
+                Limpiar PDF
+              </button>
             </div>
 
             <div className="space-y-4 overflow-y-auto p-6">
@@ -284,7 +318,10 @@ export default function Home() {
                       <p className="font-medium text-slate-900">
                         Página {source.page + 1}
                       </p>
-                      <p className="mt-2 text-slate-600">{source.content}</p>
+
+                      <p className="mt-2 text-slate-600">
+                        {source.content}
+                      </p>
                     </div>
                   ))}
                 </div>

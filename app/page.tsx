@@ -17,12 +17,23 @@ interface Source {
 
 interface ReviewItem {
   id: number;
+  article_id?: number;
+  reviewer_id?: number;
   filename: string;
   review_type: string;
   badge: string;
   score: string;
   ai_probability: string;
   created_at: string;
+}
+
+interface ArticleItem {
+  id: number;
+  title: string;
+  filename: string;
+  status: string;
+  created_at: string;
+  reviews_count: number;
 }
 
 const API_URL =
@@ -53,14 +64,19 @@ export default function Home() {
   const [articleReview, setArticleReview] = useState("");
   const [reviewScore, setReviewScore] = useState("");
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [articles, setArticles] = useState<ArticleItem[]>([]);
   const [searchReview, setSearchReview] = useState("");
 
   const [dashboard, setDashboard] = useState({
     total_reviews: 0,
+    total_articles: 0,
     accepted: 0,
     minor_changes: 0,
     major_changes: 0,
     rejected: 0,
+    submitted_articles: 0,
+    under_review_articles: 0,
+    published_articles: 0,
   });
 
   const [activeTab, setActiveTab] = useState("review");
@@ -123,6 +139,7 @@ export default function Home() {
   useEffect(() => {
     loadDashboard();
     loadReviews();
+    loadArticles();
   }, []);
 
   useEffect(() => {
@@ -154,10 +171,14 @@ export default function Home() {
 
       setDashboard({
         total_reviews: data.total_reviews || 0,
+        total_articles: data.total_articles || 0,
         accepted: data.accepted || data.accepted_reviews || 0,
         minor_changes: data.minor_changes || 0,
         major_changes: data.major_changes || 0,
         rejected: data.rejected || 0,
+        submitted_articles: data.submitted_articles || 0,
+        under_review_articles: data.under_review_articles || 0,
+        published_articles: data.published_articles || 0,
       });
     } catch (error) {
       console.error(error);
@@ -173,12 +194,36 @@ export default function Home() {
         Array.isArray(data)
           ? data.map((item) => ({
               id: item.id,
+              article_id: item.article_id,
+              reviewer_id: item.reviewer_id,
               filename: item.filename || "uploaded_article.pdf",
               review_type: item.review_type || "Sin tipo",
               badge: item.badge || "Requiere cambios mayores",
               score: String(item.score || "0"),
               ai_probability: item.ai_probability || "Baja",
               created_at: item.created_at || new Date().toISOString(),
+            }))
+          : []
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async function loadArticles() {
+    try {
+      const response = await fetch(`${API_URL}/articles`);
+      const data = await response.json();
+
+      setArticles(
+        Array.isArray(data)
+          ? data.map((item) => ({
+              id: item.id,
+              title: item.title || "Artículo sin título",
+              filename: item.filename || "Sin archivo",
+              status: item.status || "submitted",
+              created_at: item.created_at || new Date().toISOString(),
+              reviews_count: item.reviews_count || 0,
             }))
           : []
       );
@@ -273,8 +318,7 @@ export default function Home() {
       setUploadStatus("Error cargando PDF");
     }
   }
-
-  async function askPDF() {
+    async function askPDF() {
     setLoadingPdf(true);
 
     try {
@@ -334,6 +378,7 @@ export default function Home() {
 
       await loadDashboard();
       await loadReviews();
+      await loadArticles();
     } catch {
       setArticleReview("Error generando dictamen");
     }
@@ -383,7 +428,8 @@ export default function Home() {
 
     setLoadingChat(false);
   }
-    async function compareVersions() {
+
+  async function compareVersions() {
     try {
       const formData = new FormData();
       formData.append("original_text", originalText);
@@ -527,7 +573,16 @@ export default function Home() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-2xl bg-slate-100 p-4 text-black">
                   <p className="text-sm">Revisiones</p>
-                  <p className="text-3xl font-bold">{dashboard.total_reviews}</p>
+                  <p className="text-3xl font-bold">
+                    {dashboard.total_reviews}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-indigo-100 p-4 text-indigo-700">
+                  <p className="text-sm">Artículos</p>
+                  <p className="text-3xl font-bold">
+                    {dashboard.total_articles}
+                  </p>
                 </div>
 
                 <div className="rounded-2xl bg-emerald-100 p-4 text-emerald-700">
@@ -535,14 +590,11 @@ export default function Home() {
                   <p className="text-3xl font-bold">{dashboard.accepted}</p>
                 </div>
 
-                <div className="rounded-2xl bg-blue-100 p-4 text-blue-700">
-                  <p className="text-sm">Menores</p>
-                  <p className="text-3xl font-bold">{dashboard.minor_changes}</p>
-                </div>
-
                 <div className="rounded-2xl bg-amber-100 p-4 text-amber-700">
                   <p className="text-sm">Mayores</p>
-                  <p className="text-3xl font-bold">{dashboard.major_changes}</p>
+                  <p className="text-3xl font-bold">
+                    {dashboard.major_changes}
+                  </p>
                 </div>
               </div>
 
@@ -560,15 +612,14 @@ export default function Home() {
               </div>
             </section>
           </aside>
-
-          <section className="space-y-6">
+                    <section className="space-y-6">
             <section
               className={`rounded-3xl p-4 shadow-xl ${
                 darkMode ? "bg-slate-900" : "bg-white"
               }`}
             >
               <div className="flex flex-wrap gap-3">
-                {["review", "compare", "chat"].map((tab) => (
+                {["review", "articles", "compare", "chat"].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -578,6 +629,8 @@ export default function Home() {
                   >
                     {tab === "review"
                       ? "Dictamen"
+                      : tab === "articles"
+                      ? "Editorial"
                       : tab === "compare"
                       ? "Comparador"
                       : "AI Chat"}
@@ -679,7 +732,8 @@ export default function Home() {
                   >
                     {loadingPdf ? "Consultando..." : "Preguntar PDF"}
                   </button>
-                                    <button
+
+                  <button
                     onClick={reviewArticle}
                     className="rounded-2xl border border-slate-900 px-6 py-4 font-semibold"
                   >
@@ -749,9 +803,7 @@ export default function Home() {
                                 ? "bg-amber-500"
                                 : "bg-red-500"
                             }`}
-                            style={{
-                              width: `${reviewScore}%`,
-                            }}
+                            style={{ width: `${reviewScore}%` }}
                           />
                         </div>
                       </div>
@@ -793,6 +845,98 @@ export default function Home() {
                       Genera un dictamen académico
                     </div>
                   )}
+                </div>
+              </section>
+            )}
+                        {activeTab === "articles" && (
+              <section
+                className={`rounded-3xl p-6 shadow-xl ${
+                  darkMode ? "bg-slate-900" : "bg-white"
+                }`}
+              >
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-bold">Workflow editorial</h2>
+
+                    <p className="mt-2 text-slate-500">
+                      Gestión científica de manuscritos
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={loadArticles}
+                    className="rounded-2xl border px-4 py-3"
+                  >
+                    Actualizar
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="p-4 text-left">ID</th>
+                        <th className="p-4 text-left">Título</th>
+                        <th className="p-4 text-left">Archivo</th>
+                        <th className="p-4 text-left">Estado</th>
+                        <th className="p-4 text-left">Revisiones</th>
+                        <th className="p-4 text-left">Fecha</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {articles.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="p-6 text-center text-slate-500"
+                          >
+                            No hay artículos registrados todavía.
+                          </td>
+                        </tr>
+                      )}
+
+                      {articles.map((article) => (
+                        <tr key={article.id} className="border-b">
+                          <td className="p-4">{article.id}</td>
+
+                          <td className="p-4 font-semibold">
+                            {article.title}
+                          </td>
+
+                          <td className="p-4">{article.filename}</td>
+
+                          <td className="p-4">
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                article.status === "accepted"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : article.status === "rejected"
+                                  ? "bg-red-100 text-red-700"
+                                  : article.status === "under_review"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : article.status === "minor_revision"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : article.status === "major_revision"
+                                  ? "bg-orange-100 text-orange-700"
+                                  : article.status === "published"
+                                  ? "bg-purple-100 text-purple-700"
+                                  : "bg-slate-100 text-slate-700"
+                              }`}
+                            >
+                              {article.status}
+                            </span>
+                          </td>
+
+                          <td className="p-4">{article.reviews_count}</td>
+
+                          <td className="p-4 text-sm text-slate-500">
+                            {new Date(article.created_at).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </section>
             )}
@@ -883,7 +1027,8 @@ export default function Home() {
               </section>
             )}
           </section>
-                    <aside className="space-y-6">
+
+          <aside className="space-y-6">
             <section
               className={`rounded-3xl p-6 shadow-xl ${
                 darkMode ? "bg-slate-900" : "bg-white"
@@ -906,6 +1051,7 @@ export default function Home() {
                   onClick={() => {
                     loadReviews();
                     loadDashboard();
+                    loadArticles();
                   }}
                   className="rounded-2xl border px-4 py-2 text-sm"
                 >
@@ -937,6 +1083,12 @@ export default function Home() {
                         <p className="mt-1 text-xs text-slate-500">
                           {review.filename}
                         </p>
+
+                        {review.article_id && (
+                          <p className="mt-1 text-xs text-slate-400">
+                            Artículo #{review.article_id}
+                          </p>
+                        )}
                       </div>
 
                       <span

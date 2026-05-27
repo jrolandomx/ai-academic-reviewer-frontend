@@ -244,36 +244,49 @@ export default function Home() {
     }
   }
 
-  async function loginUser() {
-    try {
-      const formData = new FormData();
+async function loginUser() {
+  try {
+    const formData = new FormData();
 
-      formData.append("username", username);
-      formData.append("password", password);
+    formData.append("username", username);
+    formData.append("password", password);
 
-      const response = await fetch(`${API_URL}/login`, {
-        method: "POST",
-        body: formData,
-      });
+    const response = await fetch(`${API_URL}/login`, {
+      method: "POST",
+      body: formData,
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (data.detail || data.error) {
-        setAuthMessage(data.detail || data.error);
-        return;
-      }
-
-      setLoggedUser(data.username);
-      setToken(data.access_token);
-
-      localStorage.setItem("loggedUser", data.username);
-      localStorage.setItem("accessToken", data.access_token);
-
-      setAuthMessage("Login correcto");
-    } catch {
-      setAuthMessage("Error login");
+    if (!response.ok) {
+      setAuthMessage(data.detail || data.error || "Error login");
+      return;
     }
+
+    const receivedUser = data.username || username;
+    const receivedToken = data.access_token || "";
+
+    if (!receivedToken) {
+      setAuthMessage("No se recibió token del servidor");
+      return;
+    }
+
+    setLoggedUser(receivedUser);
+    setToken(receivedToken);
+
+    localStorage.setItem("loggedUser", receivedUser);
+    localStorage.setItem("accessToken", receivedToken);
+
+    setAuthMessage("Login correcto");
+
+    await loadDashboard();
+    await loadReviews();
+    await loadArticles();
+  } catch (error) {
+    console.error(error);
+    setAuthMessage("Error login");
   }
+}
 
   function logoutUser() {
     localStorage.removeItem("loggedUser");

@@ -63,6 +63,7 @@ export default function Home() {
   const [blindReview, setBlindReview] = useState(true);
   const [articleReview, setArticleReview] = useState("");
   const [reviewScore, setReviewScore] = useState("");
+  const [selectedReviewId, setSelectedReviewId] = useState<number | null>(null);
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [articles, setArticles] = useState<ArticleItem[]>([]);
   const [searchReview, setSearchReview] = useState("");
@@ -147,17 +148,9 @@ export default function Home() {
     const savedToken = localStorage.getItem("accessToken");
     const savedTheme = localStorage.getItem("darkMode");
 
-    if (savedUser) {
-      setLoggedUser(savedUser);
-    }
-
-    if (savedToken) {
-      setToken(savedToken);
-    }
-
-    if (savedTheme === "true") {
-      setDarkMode(true);
-    }
+    if (savedUser) setLoggedUser(savedUser);
+    if (savedToken) setToken(savedToken);
+    if (savedTheme === "true") setDarkMode(true);
   }, []);
 
   useEffect(() => {
@@ -231,23 +224,21 @@ export default function Home() {
       console.error(error);
     }
   }
-
-  async function registerUser() {
+    async function registerUser() {
     try {
+      const formData = new FormData();
+
+      formData.append("username", username);
+      formData.append("password", password);
+
       const response = await fetch(`${API_URL}/register`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username,
-          password,
-        }),
+        body: formData,
       });
 
       const data = await response.json();
 
-      setAuthMessage(data.message || data.detail || "Usuario registrado");
+      setAuthMessage(data.message || data.detail || data.error || "Usuario registrado");
     } catch {
       setAuthMessage("Error registrando usuario");
     }
@@ -255,15 +246,14 @@ export default function Home() {
 
   async function loginUser() {
     try {
+      const formData = new FormData();
+
+      formData.append("username", username);
+      formData.append("password", password);
+
       const response = await fetch(`${API_URL}/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username,
-          password,
-        }),
+        body: formData,
       });
 
       const data = await response.json();
@@ -318,11 +308,13 @@ export default function Home() {
       setUploadStatus("Error cargando PDF");
     }
   }
-    async function askPDF() {
+
+  async function askPDF() {
     setLoadingPdf(true);
 
     try {
       const formData = new FormData();
+
       formData.append("question", pdfQuestion);
 
       const response = await fetch(`${API_URL}/ask-pdf`, {
@@ -349,9 +341,11 @@ export default function Home() {
 
     setLoadingReview(true);
     setArticleReview("Generando dictamen académico...");
+    setSelectedReviewId(null);
 
     try {
       const formData = new FormData();
+
       formData.append("review_type", reviewType);
       formData.append("blind_review", String(blindReview));
 
@@ -366,15 +360,14 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
-        setArticleReview(
-          data.detail || data.error || "Error generando dictamen"
-        );
+        setArticleReview(data.detail || data.error || "Error generando dictamen");
         setLoadingReview(false);
         return;
       }
 
       setArticleReview(data.review || "No se generó dictamen");
       setReviewScore(String(data.score || ""));
+      setSelectedReviewId(data.review_id || null);
 
       await loadDashboard();
       await loadReviews();
@@ -398,6 +391,7 @@ export default function Home() {
 
       setArticleReview(data.review || data.review_content || "");
       setReviewScore(String(data.score || ""));
+      setSelectedReviewId(id);
       setActiveTab("review");
     } catch {
       alert("Error cargando revisión");
@@ -414,8 +408,8 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message,
           prompt: message,
+          message,
         }),
       });
 
@@ -432,6 +426,7 @@ export default function Home() {
   async function compareVersions() {
     try {
       const formData = new FormData();
+
       formData.append("original_text", originalText);
       formData.append("corrected_text", correctedText);
 
@@ -460,6 +455,24 @@ export default function Home() {
     } catch {
       setComparisonResult("Error comparando versiones");
     }
+  }
+
+  function exportSelectedWord() {
+    if (!selectedReviewId) {
+      alert("Primero genera o selecciona un dictamen del historial");
+      return;
+    }
+
+    window.open(`${API_URL}/reviews/${selectedReviewId}/word`, "_blank");
+  }
+
+  function exportSelectedPDF() {
+    if (!selectedReviewId) {
+      alert("Primero genera o selecciona un dictamen del historial");
+      return;
+    }
+
+    window.open(`${API_URL}/reviews/${selectedReviewId}/pdf`, "_blank");
   }
 
   return (
@@ -496,8 +509,7 @@ export default function Home() {
             </button>
           </div>
         </header>
-
-        <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[380px_1fr_450px]">
+                <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[380px_1fr_450px]">
           <aside className="space-y-6">
             <section
               className={`rounded-3xl p-6 shadow-xl ${
@@ -612,7 +624,8 @@ export default function Home() {
               </div>
             </section>
           </aside>
-                    <section className="space-y-6">
+
+          <section className="space-y-6">
             <section
               className={`rounded-3xl p-4 shadow-xl ${
                 darkMode ? "bg-slate-900" : "bg-white"
@@ -769,8 +782,7 @@ export default function Home() {
                 )}
               </div>
             </section>
-
-            {activeTab === "review" && (
+                        {activeTab === "review" && (
               <section
                 className={`rounded-3xl p-6 shadow-xl ${
                   darkMode ? "bg-slate-900" : "bg-white"
@@ -803,7 +815,9 @@ export default function Home() {
                                 ? "bg-amber-500"
                                 : "bg-red-500"
                             }`}
-                            style={{ width: `${reviewScore}%` }}
+                            style={{
+                              width: `${reviewScore}%`,
+                            }}
                           />
                         </div>
                       </div>
@@ -812,18 +826,14 @@ export default function Home() {
 
                   <div className="flex gap-3">
                     <button
-                      onClick={() =>
-                        window.open(`${API_URL}/export-review-word`, "_blank")
-                      }
+                      onClick={exportSelectedWord}
                       className="rounded-2xl border px-4 py-3"
                     >
                       Word
                     </button>
 
                     <button
-                      onClick={() =>
-                        window.open(`${API_URL}/export-review-pdf`, "_blank")
-                      }
+                      onClick={exportSelectedPDF}
                       className="rounded-2xl border px-4 py-3"
                     >
                       PDF
@@ -848,7 +858,8 @@ export default function Home() {
                 </div>
               </section>
             )}
-                        {activeTab === "articles" && (
+
+            {activeTab === "articles" && (
               <section
                 className={`rounded-3xl p-6 shadow-xl ${
                   darkMode ? "bg-slate-900" : "bg-white"
@@ -1148,9 +1159,7 @@ export default function Home() {
                         <p className="text-xs text-slate-500">Fecha</p>
 
                         <p className="text-sm font-bold">
-                          {new Date(
-                            review.created_at
-                          ).toLocaleDateString()}
+                          {new Date(review.created_at).toLocaleDateString()}
                         </p>
                       </div>
                     </div>

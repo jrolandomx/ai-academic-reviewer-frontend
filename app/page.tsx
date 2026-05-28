@@ -535,11 +535,11 @@ export default function Home() {
 
   return (
     <main
-      className={`min-h-screen p-6 transition ${
+      className={`min-h-screen overflow-x-hidden p-6 transition ${
         darkMode ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-900"
       }`}
     >
-      <div className="mx-auto max-w-[1900px]">
+      <div className="mx-auto w-full max-w-[1600px] overflow-hidden">
         <header
           className={`mb-8 rounded-3xl p-8 shadow-xl ${
             darkMode ? "bg-slate-900" : "bg-white"
@@ -567,7 +567,7 @@ export default function Home() {
             </button>
           </div>
         </header>
-                <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[380px_1fr_450px]">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
           <aside className="space-y-6">
             <section
               className={`rounded-3xl p-6 shadow-xl ${
@@ -683,7 +683,7 @@ export default function Home() {
             </section>
           </aside>
 
-          <section className="space-y-6">
+          <section className="min-w-0 space-y-6">
             <section
               className={`rounded-3xl p-4 shadow-xl ${
                 darkMode ? "bg-slate-900" : "bg-white"

@@ -64,6 +64,7 @@ export default function Home() {
   const [articleReview, setArticleReview] = useState("");
   const [reviewScore, setReviewScore] = useState("");
   const [selectedReviewId, setSelectedReviewId] = useState<number | null>(null);
+
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [articles, setArticles] = useState<ArticleItem[]>([]);
   const [searchReview, setSearchReview] = useState("");
@@ -157,6 +158,24 @@ export default function Home() {
     localStorage.setItem("darkMode", String(darkMode));
   }, [darkMode]);
 
+  function getErrorMessage(data: any, fallback: string) {
+    if (!data) return fallback;
+
+    if (typeof data === "string") return data;
+
+    if (typeof data.detail === "string") return data.detail;
+
+    if (Array.isArray(data.detail)) {
+      return data.detail
+        .map((item: any) => item.msg || JSON.stringify(item))
+        .join(", ");
+    }
+
+    if (typeof data.error === "string") return data.error;
+
+    return fallback;
+  }
+
   async function loadDashboard() {
     try {
       const response = await fetch(`${API_URL}/dashboard`);
@@ -238,55 +257,58 @@ export default function Home() {
 
       const data = await response.json();
 
-      setAuthMessage(data.message || data.detail || data.error || "Usuario registrado");
+      setAuthMessage(
+        response.ok
+          ? data.message || "Usuario registrado"
+          : getErrorMessage(data, "Error registrando usuario")
+      );
     } catch {
       setAuthMessage("Error registrando usuario");
     }
   }
 
-async function loginUser() {
-  try {
-    const formData = new FormData();
+  async function loginUser() {
+    try {
+      const formData = new FormData();
 
-    formData.append("username", username);
-    formData.append("password", password);
+      formData.append("username", username);
+      formData.append("password", password);
 
-    const response = await fetch(`${API_URL}/login`, {
-      method: "POST",
-      body: formData,
-    });
+      const response = await fetch(`${API_URL}/login`, {
+        method: "POST",
+        body: formData,
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (!response.ok) {
-      setAuthMessage(data.detail || data.error || "Error login");
-      return;
+      if (!response.ok) {
+        setAuthMessage(getErrorMessage(data, "Error login"));
+        return;
+      }
+
+      const receivedUser = data.username || username;
+      const receivedToken = data.access_token || "";
+
+      if (!receivedToken) {
+        setAuthMessage("No se recibió token del servidor");
+        return;
+      }
+
+      setLoggedUser(receivedUser);
+      setToken(receivedToken);
+
+      localStorage.setItem("loggedUser", receivedUser);
+      localStorage.setItem("accessToken", receivedToken);
+
+      setAuthMessage("Login correcto");
+
+      await loadDashboard();
+      await loadReviews();
+      await loadArticles();
+    } catch {
+      setAuthMessage("Error login");
     }
-
-    const receivedUser = data.username || username;
-    const receivedToken = data.access_token || "";
-
-    if (!receivedToken) {
-      setAuthMessage("No se recibió token del servidor");
-      return;
-    }
-
-    setLoggedUser(receivedUser);
-    setToken(receivedToken);
-
-    localStorage.setItem("loggedUser", receivedUser);
-    localStorage.setItem("accessToken", receivedToken);
-
-    setAuthMessage("Login correcto");
-
-    await loadDashboard();
-    await loadReviews();
-    await loadArticles();
-  } catch (error) {
-    console.error(error);
-    setAuthMessage("Error login");
   }
-}
 
   function logoutUser() {
     localStorage.removeItem("loggedUser");
@@ -302,6 +324,7 @@ async function loginUser() {
 
     try {
       const formData = new FormData();
+
       formData.append("file", file);
 
       const response = await fetch(`${API_URL}/upload-pdf`, {
@@ -312,11 +335,11 @@ async function loginUser() {
       const data = await response.json();
 
       if (!response.ok) {
-        setUploadStatus(data.detail || data.error || "Error cargando PDF");
+        setUploadStatus(getErrorMessage(data, "Error cargando PDF"));
         return;
       }
 
-      setUploadStatus(`PDF cargado: ${data.filename}`);
+      setUploadStatus(`PDF cargado: ${data.filename || "archivo.pdf"}`);
     } catch {
       setUploadStatus("Error cargando PDF");
     }
@@ -337,8 +360,14 @@ async function loginUser() {
 
       const data = await response.json();
 
+      if (!response.ok) {
+        setPdfResponse(getErrorMessage(data, "Error consultando PDF"));
+        setLoadingPdf(false);
+        return;
+      }
+
       setPdfResponse(data.answer || "Sin respuesta");
-      setPdfSources(data.sources || []);
+      setPdfSources(Array.isArray(data.sources) ? data.sources : []);
     } catch {
       setPdfResponse("Error consultando PDF");
     }
@@ -373,7 +402,7 @@ async function loginUser() {
       const data = await response.json();
 
       if (!response.ok) {
-        setArticleReview(data.detail || data.error || "Error generando dictamen");
+        setArticleReview(getErrorMessage(data, "Error generando dictamen"));
         setLoadingReview(false);
         return;
       }
@@ -402,6 +431,11 @@ async function loginUser() {
 
       const data = await response.json();
 
+      if (!response.ok) {
+        alert(getErrorMessage(data, "Error cargando revisión"));
+        return;
+      }
+
       setArticleReview(data.review || data.review_content || "");
       setReviewScore(String(data.score || ""));
       setSelectedReviewId(id);
@@ -427,6 +461,12 @@ async function loginUser() {
       });
 
       const data = await response.json();
+
+      if (!response.ok) {
+        setChatResponse(getErrorMessage(data, "Error generando respuesta"));
+        setLoadingChat(false);
+        return;
+      }
 
       setChatResponse(data.response || "Sin respuesta");
     } catch {
@@ -462,6 +502,11 @@ async function loginUser() {
       }
 
       const data = await response.json();
+
+      if (!response.ok) {
+        setComparisonResult(getErrorMessage(data, "Error comparando versiones"));
+        return;
+      }
 
       setComparisonResult(data.comparison || "Sin comparación");
       setActiveTab("compare");
@@ -581,7 +626,7 @@ async function loginUser() {
 
                   {authMessage && (
                     <div className="rounded-2xl bg-slate-100 p-4 text-black">
-                      {authMessage}
+                      {String(authMessage)}
                     </div>
                   )}
                 </div>
@@ -715,7 +760,7 @@ async function loginUser() {
 
                 {uploadStatus && (
                   <div className="rounded-2xl bg-emerald-100 p-4 text-emerald-700">
-                    {uploadStatus}
+                    {String(uploadStatus)}
                   </div>
                 )}
 
@@ -771,7 +816,7 @@ async function loginUser() {
                   <div className="rounded-3xl bg-slate-100 p-6 text-black">
                     <h3 className="mb-3 text-xl font-bold">Respuesta del PDF</h3>
                     <p className="whitespace-pre-wrap leading-relaxed">
-                      {pdfResponse}
+                      {String(pdfResponse)}
                     </p>
                   </div>
                 )}
@@ -785,9 +830,11 @@ async function loginUser() {
                         key={index}
                         className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-black"
                       >
-                        <p className="font-semibold">Página {source.page + 1}</p>
+                        <p className="font-semibold">
+                          Página {Number(source.page || 0) + 1}
+                        </p>
                         <p className="mt-2 text-sm text-slate-600">
-                          {source.content}
+                          {String(source.content || "")}
                         </p>
                       </div>
                     ))}
@@ -813,7 +860,7 @@ async function loginUser() {
                           </span>
 
                           <span className="text-sm font-bold">
-                            {reviewScore}/100
+                            {String(reviewScore)}/100
                           </span>
                         </div>
 
@@ -829,7 +876,7 @@ async function loginUser() {
                                 : "bg-red-500"
                             }`}
                             style={{
-                              width: `${reviewScore}%`,
+                              width: `${Number(reviewScore)}%`,
                             }}
                           />
                         </div>
@@ -861,7 +908,9 @@ async function loginUser() {
                 >
                   {articleReview ? (
                     <article className="prose prose-slate max-w-none">
-                      <ReactMarkdown>{articleReview}</ReactMarkdown>
+                      <ReactMarkdown>
+                        {String(articleReview)}
+                      </ReactMarkdown>
                     </article>
                   ) : (
                     <div className="rounded-2xl border border-dashed p-8 text-center text-slate-500">
@@ -880,7 +929,9 @@ async function loginUser() {
               >
                 <div className="mb-6 flex items-center justify-between">
                   <div>
-                    <h2 className="text-3xl font-bold">Workflow editorial</h2>
+                    <h2 className="text-3xl font-bold">
+                      Workflow editorial
+                    </h2>
 
                     <p className="mt-2 text-slate-500">
                       Gestión científica de manuscritos
@@ -921,14 +972,21 @@ async function loginUser() {
                       )}
 
                       {articles.map((article) => (
-                        <tr key={article.id} className="border-b">
-                          <td className="p-4">{article.id}</td>
-
-                          <td className="p-4 font-semibold">
-                            {article.title}
+                        <tr
+                          key={article.id}
+                          className="border-b"
+                        >
+                          <td className="p-4">
+                            {article.id}
                           </td>
 
-                          <td className="p-4">{article.filename}</td>
+                          <td className="p-4 font-semibold">
+                            {String(article.title)}
+                          </td>
+
+                          <td className="p-4">
+                            {String(article.filename)}
+                          </td>
 
                           <td className="p-4">
                             <span
@@ -948,14 +1006,18 @@ async function loginUser() {
                                   : "bg-slate-100 text-slate-700"
                               }`}
                             >
-                              {article.status}
+                              {String(article.status)}
                             </span>
                           </td>
 
-                          <td className="p-4">{article.reviews_count}</td>
+                          <td className="p-4">
+                            {Number(article.reviews_count)}
+                          </td>
 
                           <td className="p-4 text-sm text-slate-500">
-                            {new Date(article.created_at).toLocaleDateString()}
+                            {new Date(
+                              article.created_at
+                            ).toLocaleDateString()}
                           </td>
                         </tr>
                       ))}
@@ -979,7 +1041,9 @@ async function loginUser() {
                   <textarea
                     rows={12}
                     value={originalText}
-                    onChange={(e) => setOriginalText(e.target.value)}
+                    onChange={(e) =>
+                      setOriginalText(e.target.value)
+                    }
                     placeholder="Versión original..."
                     className="rounded-3xl border p-5 text-black"
                   />
@@ -987,7 +1051,9 @@ async function loginUser() {
                   <textarea
                     rows={12}
                     value={correctedText}
-                    onChange={(e) => setCorrectedText(e.target.value)}
+                    onChange={(e) =>
+                      setCorrectedText(e.target.value)
+                    }
                     placeholder="Versión corregida..."
                     className="rounded-3xl border p-5 text-black"
                   />
@@ -1006,7 +1072,9 @@ async function loginUser() {
                       darkMode ? "bg-slate-950" : "bg-slate-50"
                     }`}
                   >
-                    <ReactMarkdown>{comparisonResult}</ReactMarkdown>
+                    <ReactMarkdown>
+                      {String(comparisonResult)}
+                    </ReactMarkdown>
                   </div>
                 )}
               </section>
@@ -1018,13 +1086,17 @@ async function loginUser() {
                   darkMode ? "bg-slate-900" : "bg-white"
                 }`}
               >
-                <h2 className="mb-6 text-3xl font-bold">AI Chat</h2>
+                <h2 className="mb-6 text-3xl font-bold">
+                  AI Chat
+                </h2>
 
                 <div className="space-y-5">
                   <textarea
                     rows={5}
                     value={message}
-                    onChange={(e) => setMessage(e.target.value)}
+                    onChange={(e) =>
+                      setMessage(e.target.value)
+                    }
                     placeholder="Escribe tu pregunta..."
                     className="w-full rounded-2xl border p-4 text-black"
                   />
@@ -1043,7 +1115,7 @@ async function loginUser() {
                       }`}
                     >
                       <p className="whitespace-pre-wrap leading-relaxed">
-                        {chatResponse}
+                        {String(chatResponse)}
                       </p>
                     </div>
                   )}
@@ -1060,27 +1132,20 @@ async function loginUser() {
             >
               <div className="mb-6 flex items-center justify-between gap-4">
                 <div className="flex-1">
-                  <h2 className="text-2xl font-bold">Historial</h2>
+                  <h2 className="text-2xl font-bold">
+                    Historial
+                  </h2>
 
                   <input
                     type="text"
                     placeholder="Buscar revisión..."
                     value={searchReview}
-                    onChange={(e) => setSearchReview(e.target.value)}
+                    onChange={(e) =>
+                      setSearchReview(e.target.value)
+                    }
                     className="mt-4 w-full rounded-2xl border p-4 text-black"
                   />
                 </div>
-
-                <button
-                  onClick={() => {
-                    loadReviews();
-                    loadDashboard();
-                    loadArticles();
-                  }}
-                  className="rounded-2xl border px-4 py-2 text-sm"
-                >
-                  Actualizar
-                </button>
               </div>
 
               <div className="max-h-[900px] space-y-4 overflow-y-auto pr-2">
@@ -1102,31 +1167,28 @@ async function loginUser() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-bold">{review.review_type}</p>
-
-                        <p className="mt-1 text-xs text-slate-500">
-                          {review.filename}
+                        <p className="font-bold">
+                          {String(review.review_type)}
                         </p>
 
-                        {review.article_id && (
-                          <p className="mt-1 text-xs text-slate-400">
-                            Artículo #{review.article_id}
-                          </p>
-                        )}
+                        <p className="mt-1 text-xs text-slate-500">
+                          {String(review.filename)}
+                        </p>
                       </div>
 
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-bold ${
                           review.badge === "Aceptado sin cambios"
                             ? "bg-emerald-100 text-emerald-700"
-                            : review.badge === "Aceptado con cambios menores"
+                            : review.badge ===
+                              "Aceptado con cambios menores"
                             ? "bg-blue-100 text-blue-700"
                             : review.badge === "Rechazado"
                             ? "bg-red-100 text-red-700"
                             : "bg-amber-100 text-amber-700"
                         }`}
                       >
-                        {review.badge}
+                        {String(review.badge)}
                       </span>
                     </div>
 
@@ -1137,7 +1199,7 @@ async function loginUser() {
                         </span>
 
                         <span className="text-xs font-bold">
-                          {review.score}/100
+                          {String(review.score)}/100
                         </span>
                       </div>
 
@@ -1153,79 +1215,13 @@ async function loginUser() {
                               : "bg-red-500"
                           }`}
                           style={{
-                            width: `${review.score}%`,
+                            width: `${Number(review.score)}%`,
                           }}
                         />
                       </div>
                     </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-3">
-                      <div className="rounded-2xl bg-slate-100 p-3 text-black">
-                        <p className="text-xs text-slate-500">IA</p>
-
-                        <p className="font-bold">
-                          {review.ai_probability}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl bg-slate-100 p-3 text-black">
-                        <p className="text-xs text-slate-500">Fecha</p>
-
-                        <p className="text-sm font-bold">
-                          {new Date(review.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
                   </button>
                 ))}
-              </div>
-            </section>
-
-            <section
-              className={`rounded-3xl p-6 shadow-xl ${
-                darkMode ? "bg-slate-900" : "bg-white"
-              }`}
-            >
-              <h2 className="mb-6 text-2xl font-bold">
-                Estadísticas IA
-              </h2>
-
-              <div className="space-y-4">
-                <div className="rounded-2xl bg-red-100 p-5 text-red-700">
-                  <p className="text-sm">Riesgo IA alto</p>
-
-                  <p className="text-3xl font-bold">
-                    {
-                      reviews.filter(
-                        (r) => r.ai_probability === "Alta"
-                      ).length
-                    }
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-amber-100 p-5 text-amber-700">
-                  <p className="text-sm">Riesgo IA medio</p>
-
-                  <p className="text-3xl font-bold">
-                    {
-                      reviews.filter(
-                        (r) => r.ai_probability === "Media"
-                      ).length
-                    }
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-emerald-100 p-5 text-emerald-700">
-                  <p className="text-sm">Riesgo IA bajo</p>
-
-                  <p className="text-3xl font-bold">
-                    {
-                      reviews.filter(
-                        (r) => r.ai_probability === "Baja"
-                      ).length
-                    }
-                  </p>
-                </div>
               </div>
             </section>
           </aside>

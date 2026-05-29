@@ -204,7 +204,7 @@ export default function Home() {
 
       setReviews(
         Array.isArray(data)
-          ? data.map((item) => ({
+          ? data.map((item: any) => ({
               id: item.id,
               article_id: item.article_id,
               reviewer_id: item.reviewer_id,
@@ -229,7 +229,7 @@ export default function Home() {
 
       setArticles(
         Array.isArray(data)
-          ? data.map((item) => ({
+          ? data.map((item: any) => ({
               id: item.id,
               title: item.title || "Artículo sin título",
               filename: item.filename || "Sin archivo",
@@ -546,12 +546,14 @@ export default function Home() {
           }`}
         >
           <div className="flex items-start justify-between gap-6">
-            <div>
+            <div className="min-w-0">
               <p className="mb-2 text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">
                 Instituto de Investigaciones en Contaduría
               </p>
 
-              <h1 className="text-5xl font-bold">Universidad Veracruzana</h1>
+              <h1 className="break-words text-4xl font-bold xl:text-5xl">
+                Universidad Veracruzana
+              </h1>
 
               <p className="mt-4 max-w-4xl text-lg text-slate-500">
                 Plataforma inteligente para la revisión académica, análisis
@@ -561,7 +563,7 @@ export default function Home() {
 
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="rounded-2xl border px-5 py-3"
+              className="shrink-0 rounded-2xl border px-5 py-3"
             >
               {darkMode ? "Modo claro" : "Modo oscuro"}
             </button>
@@ -668,14 +670,15 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="mt-8 h-[280px]">
+              <div className="mt-8 h-[260px]">
                 <ResponsiveContainer>
                   <PieChart>
-                    <Pie data={chartData} dataKey="value" outerRadius={90} label>
+                    <Pie data={chartData} dataKey="value" outerRadius={85} label>
                       {chartData.map((entry, index) => (
                         <Cell key={index} fill={COLORS[index]} />
                       ))}
                     </Pie>
+
                     <Tooltip />
                   </PieChart>
                 </ResponsiveContainer>
@@ -715,7 +718,7 @@ export default function Home() {
                 darkMode ? "bg-slate-900" : "bg-white"
               }`}
             >
-              <div className="mb-6 flex items-center justify-between">
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                 <h2 className="text-3xl font-bold">PDF Intelligence</h2>
 
                 <div
@@ -730,7 +733,9 @@ export default function Home() {
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault();
+
                     const file = e.dataTransfer.files?.[0];
+
                     if (file) uploadPDF(file);
                   }}
                   className={`rounded-3xl border-2 border-dashed p-10 text-center transition ${
@@ -744,6 +749,7 @@ export default function Home() {
                     accept="application/pdf"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
+
                       if (file) uploadPDF(file);
                     }}
                     className="hidden"
@@ -752,6 +758,7 @@ export default function Home() {
 
                   <label htmlFor="pdfUpload" className="cursor-pointer">
                     <p className="text-lg font-semibold">Arrastra un PDF aquí</p>
+
                     <p className="mt-2 text-sm text-slate-500">
                       o haz clic para seleccionar
                     </p>
@@ -764,11 +771,11 @@ export default function Home() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <select
                     value={reviewType}
                     onChange={(e) => setReviewType(e.target.value)}
-                    className="rounded-2xl border p-4 text-black"
+                    className="min-w-0 rounded-2xl border p-4 text-black"
                   >
                     <option>Scopus</option>
                     <option>WoS</option>
@@ -778,12 +785,13 @@ export default function Home() {
                     <option>Tesis maestría</option>
                   </select>
 
-                  <label className="flex items-center gap-3 rounded-2xl border p-4">
+                  <label className="flex min-w-0 items-center gap-3 rounded-2xl border p-4">
                     <input
                       type="checkbox"
                       checked={blindReview}
                       onChange={(e) => setBlindReview(e.target.checked)}
                     />
+
                     <span>Revisión ciega</span>
                   </label>
                 </div>
@@ -796,7 +804,7 @@ export default function Home() {
                   className="w-full rounded-2xl border p-4 text-black"
                 />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <button
                     onClick={askPDF}
                     className="rounded-2xl bg-slate-950 px-6 py-4 font-semibold text-white"
@@ -815,6 +823,7 @@ export default function Home() {
                 {pdfResponse && (
                   <div className="rounded-3xl bg-slate-100 p-6 text-black">
                     <h3 className="mb-3 text-xl font-bold">Respuesta del PDF</h3>
+
                     <p className="whitespace-pre-wrap leading-relaxed">
                       {String(pdfResponse)}
                     </p>
@@ -833,6 +842,7 @@ export default function Home() {
                         <p className="font-semibold">
                           Página {Number(source.page || 0) + 1}
                         </p>
+
                         <p className="mt-2 text-sm text-slate-600">
                           {String(source.content || "")}
                         </p>
@@ -848,12 +858,12 @@ export default function Home() {
                   darkMode ? "bg-slate-900" : "bg-white"
                 }`}
               >
-                <div className="mb-6 flex items-center justify-between">
-                  <div>
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                  <div className="min-w-0">
                     <h2 className="text-3xl font-bold">Dictamen académico</h2>
 
                     {reviewScore && (
-                      <div className="mt-4">
+                      <div className="mt-4 max-w-md">
                         <div className="mb-2 flex items-center justify-between">
                           <span className="text-sm font-semibold">
                             Calidad científica
@@ -884,7 +894,7 @@ export default function Home() {
                     )}
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="flex shrink-0 gap-3">
                     <button
                       onClick={exportSelectedWord}
                       className="rounded-2xl border px-4 py-3"
@@ -907,7 +917,7 @@ export default function Home() {
                   }`}
                 >
                   {articleReview ? (
-                    <article className="prose prose-slate max-w-none">
+                    <article className="prose prose-slate max-w-none break-words">
                       <ReactMarkdown>
                         {String(articleReview)}
                       </ReactMarkdown>
@@ -927,7 +937,7 @@ export default function Home() {
                   darkMode ? "bg-slate-900" : "bg-white"
                 }`}
               >
-                <div className="mb-6 flex items-center justify-between">
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <h2 className="text-3xl font-bold">
                       Workflow editorial
@@ -947,7 +957,7 @@ export default function Home() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full min-w-[720px]">
                     <thead>
                       <tr className="border-b">
                         <th className="p-4 text-left">ID</th>
@@ -1045,7 +1055,7 @@ export default function Home() {
                       setOriginalText(e.target.value)
                     }
                     placeholder="Versión original..."
-                    className="rounded-3xl border p-5 text-black"
+                    className="min-w-0 rounded-3xl border p-5 text-black"
                   />
 
                   <textarea
@@ -1055,7 +1065,7 @@ export default function Home() {
                       setCorrectedText(e.target.value)
                     }
                     placeholder="Versión corregida..."
-                    className="rounded-3xl border p-5 text-black"
+                    className="min-w-0 rounded-3xl border p-5 text-black"
                   />
                 </div>
 
@@ -1068,7 +1078,7 @@ export default function Home() {
 
                 {comparisonResult && (
                   <div
-                    className={`prose prose-slate mt-8 max-w-none rounded-3xl p-6 ${
+                    className={`prose prose-slate mt-8 max-w-none break-words rounded-3xl p-6 ${
                       darkMode ? "bg-slate-950" : "bg-slate-50"
                     }`}
                   >
@@ -1110,7 +1120,7 @@ export default function Home() {
 
                   {chatResponse && (
                     <div
-                      className={`rounded-3xl p-6 ${
+                      className={`break-words rounded-3xl p-6 ${
                         darkMode ? "bg-slate-950" : "bg-slate-50"
                       }`}
                     >
@@ -1131,7 +1141,7 @@ export default function Home() {
               }`}
             >
               <div className="mb-6 flex items-center justify-between gap-4">
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <h2 className="text-2xl font-bold">
                     Historial
                   </h2>
@@ -1148,7 +1158,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="max-h-[900px] space-y-4 overflow-y-auto pr-2">
+              <div className="max-h-[700px] space-y-4 overflow-y-auto pr-2">
                 {filteredReviews.length === 0 && (
                   <div className="rounded-2xl border border-dashed p-6 text-center text-slate-500">
                     No hay revisiones
@@ -1166,18 +1176,24 @@ export default function Home() {
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-bold">
+                      <div className="min-w-0">
+                        <p className="truncate font-bold">
                           {String(review.review_type)}
                         </p>
 
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 truncate text-xs text-slate-500">
                           {String(review.filename)}
                         </p>
+
+                        {review.article_id && (
+                          <p className="mt-1 text-xs text-slate-400">
+                            Artículo #{review.article_id}
+                          </p>
+                        )}
                       </div>
 
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
                           review.badge === "Aceptado sin cambios"
                             ? "bg-emerald-100 text-emerald-700"
                             : review.badge ===
@@ -1220,8 +1236,76 @@ export default function Home() {
                         />
                       </div>
                     </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div className="rounded-2xl bg-slate-100 p-3 text-black">
+                        <p className="text-xs text-slate-500">IA</p>
+
+                        <p className="font-bold">
+                          {String(review.ai_probability)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl bg-slate-100 p-3 text-black">
+                        <p className="text-xs text-slate-500">Fecha</p>
+
+                        <p className="text-sm font-bold">
+                          {new Date(
+                            review.created_at
+                          ).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
                   </button>
                 ))}
+              </div>
+            </section>
+
+            <section
+              className={`rounded-3xl p-6 shadow-xl ${
+                darkMode ? "bg-slate-900" : "bg-white"
+              }`}
+            >
+              <h2 className="mb-6 text-2xl font-bold">
+                Estadísticas IA
+              </h2>
+
+              <div className="space-y-4">
+                <div className="rounded-2xl bg-red-100 p-5 text-red-700">
+                  <p className="text-sm">Riesgo IA alto</p>
+
+                  <p className="text-3xl font-bold">
+                    {
+                      reviews.filter(
+                        (r) => r.ai_probability === "Alta"
+                      ).length
+                    }
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-amber-100 p-5 text-amber-700">
+                  <p className="text-sm">Riesgo IA medio</p>
+
+                  <p className="text-3xl font-bold">
+                    {
+                      reviews.filter(
+                        (r) => r.ai_probability === "Media"
+                      ).length
+                    }
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-emerald-100 p-5 text-emerald-700">
+                  <p className="text-sm">Riesgo IA bajo</p>
+
+                  <p className="text-3xl font-bold">
+                    {
+                      reviews.filter(
+                        (r) => r.ai_probability === "Baja"
+                      ).length
+                    }
+                  </p>
+                </div>
               </div>
             </section>
           </aside>

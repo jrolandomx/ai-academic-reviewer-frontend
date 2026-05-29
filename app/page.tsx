@@ -61,9 +61,11 @@ export default function Home() {
 
   const [reviewType, setReviewType] = useState("Scopus");
   const [blindReview, setBlindReview] = useState(true);
+
   const [articleReview, setArticleReview] = useState("");
   const [reviewScore, setReviewScore] = useState("");
   const [selectedReviewId, setSelectedReviewId] = useState<number | null>(null);
+  const [selectedReview, setSelectedReview] = useState<any | null>(null);
 
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [articles, setArticles] = useState<ArticleItem[]>([]);
@@ -103,8 +105,8 @@ export default function Home() {
 
   const filteredReviews = useMemo(() => {
     return reviews.filter((review) => {
-      const searchableText = `${review.review_type} ${review.badge} ${review.filename}`
-        .toLowerCase();
+      const searchableText =
+        `${review.review_type} ${review.badge} ${review.filename}`.toLowerCase();
 
       const matchesSearch = searchableText.includes(
         searchReview.toLowerCase()
@@ -169,9 +171,7 @@ export default function Home() {
 
   function getErrorMessage(data: any, fallback: string) {
     if (!data) return fallback;
-
     if (typeof data === "string") return data;
-
     if (typeof data.detail === "string") return data.detail;
 
     if (Array.isArray(data.detail)) {
@@ -193,7 +193,7 @@ export default function Home() {
       setDashboard({
         total_reviews: data.total_reviews || 0,
         total_articles: data.total_articles || 0,
-        accepted: data.accepted || data.accepted_reviews || 0,
+        accepted: data.accepted || 0,
         minor_changes: data.minor_changes || 0,
         major_changes: data.major_changes || 0,
         rejected: data.rejected || 0,
@@ -205,8 +205,7 @@ export default function Home() {
       console.error(error);
     }
   }
-
-  async function loadReviews() {
+    async function loadReviews() {
     try {
       const response = await fetch(`${API_URL}/reviews`);
       const data = await response.json();
@@ -231,6 +230,34 @@ export default function Home() {
     }
   }
 
+  async function openReview(id: number) {
+    try {
+      let response = await fetch(`${API_URL}/review/${id}`);
+
+      if (!response.ok) {
+        response = await fetch(`${API_URL}/reviews/${id}`);
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(getErrorMessage(data, "Error cargando revisión"));
+        return;
+      }
+
+      const reviewText =
+        data.review || data.review_content || data.dictamen || "";
+
+      setSelectedReview(data);
+      setSelectedReviewId(id);
+      setArticleReview(reviewText);
+      setReviewScore(String(data.score || ""));
+      setActiveTab("review");
+    } catch {
+      alert("Error cargando revisión");
+    }
+  }
+
   async function loadArticles() {
     try {
       const response = await fetch(`${API_URL}/articles`);
@@ -252,7 +279,8 @@ export default function Home() {
       console.error(error);
     }
   }
-    async function registerUser() {
+
+  async function registerUser() {
     try {
       const formData = new FormData();
 
@@ -353,8 +381,7 @@ export default function Home() {
       setUploadStatus("Error cargando PDF");
     }
   }
-
-  async function askPDF() {
+    async function askPDF() {
     setLoadingPdf(true);
 
     try {
@@ -393,6 +420,7 @@ export default function Home() {
     setLoadingReview(true);
     setArticleReview("Generando dictamen académico...");
     setSelectedReviewId(null);
+    setSelectedReview(null);
 
     try {
       const formData = new FormData();
@@ -416,9 +444,13 @@ export default function Home() {
         return;
       }
 
-      setArticleReview(data.review || "No se generó dictamen");
+      const reviewText =
+        data.review || data.review_content || data.dictamen || "";
+
+      setArticleReview(reviewText);
       setReviewScore(String(data.score || ""));
       setSelectedReviewId(data.review_id || null);
+      setSelectedReview(data);
 
       await loadDashboard();
       await loadReviews();
@@ -428,30 +460,6 @@ export default function Home() {
     }
 
     setLoadingReview(false);
-  }
-
-  async function openReview(id: number) {
-    try {
-      let response = await fetch(`${API_URL}/review/${id}`);
-
-      if (!response.ok) {
-        response = await fetch(`${API_URL}/reviews/${id}`);
-      }
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        alert(getErrorMessage(data, "Error cargando revisión"));
-        return;
-      }
-
-      setArticleReview(data.review || data.review_content || "");
-      setReviewScore(String(data.score || ""));
-      setSelectedReviewId(id);
-      setActiveTab("review");
-    } catch {
-      alert("Error cargando revisión");
-    }
   }
 
   async function deleteReview(id: number) {
@@ -483,6 +491,7 @@ export default function Home() {
 
       if (selectedReviewId === id) {
         setSelectedReviewId(null);
+        setSelectedReview(null);
         setArticleReview("");
         setReviewScore("");
       }
@@ -525,7 +534,8 @@ export default function Home() {
 
     setLoadingChat(false);
   }
-    async function compareVersions() {
+
+  async function compareVersions() {
     try {
       const formData = new FormData();
 
@@ -618,8 +628,7 @@ export default function Home() {
             </button>
           </div>
         </header>
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
           <aside className="space-y-6">
             <section
               className={`rounded-3xl p-6 shadow-xl ${
@@ -775,7 +784,8 @@ export default function Home() {
               </div>
             </section>
           </aside>
-                    <section className="min-w-0 space-y-6">
+
+          <section className="min-w-0 space-y-6">
             <section
               className={`rounded-3xl p-4 shadow-xl ${
                 darkMode ? "bg-slate-900" : "bg-white"
@@ -941,8 +951,7 @@ export default function Home() {
                 )}
               </div>
             </section>
-
-            {activeTab === "review" && (
+                        {activeTab === "review" && (
               <section
                 className={`rounded-3xl p-6 shadow-xl ${
                   darkMode ? "bg-slate-900" : "bg-white"
@@ -951,6 +960,22 @@ export default function Home() {
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                   <div className="min-w-0">
                     <h2 className="text-3xl font-bold">Dictamen académico</h2>
+
+                    {selectedReview && (
+                      <div className="mt-3 flex flex-wrap gap-3">
+                        <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-black">
+                          Score: {String(selectedReview.score || reviewScore)}
+                        </span>
+
+                        <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-black">
+                          IA: {String(selectedReview.ai_probability || "Baja")}
+                        </span>
+
+                        <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-black">
+                          Dictamen: {String(selectedReview.badge || detectedBadge.label)}
+                        </span>
+                      </div>
+                    )}
 
                     {reviewScore && (
                       <div className="mt-4 max-w-md">
@@ -1014,13 +1039,14 @@ export default function Home() {
                     </article>
                   ) : (
                     <div className="rounded-2xl border border-dashed p-8 text-center text-slate-500">
-                      Genera un dictamen académico
+                      Selecciona una revisión del historial o genera un dictamen académico
                     </div>
                   )}
                 </div>
               </section>
             )}
-                        {activeTab === "articles" && (
+
+            {activeTab === "articles" && (
               <section
                 className={`rounded-3xl p-6 shadow-xl ${
                   darkMode ? "bg-slate-900" : "bg-white"
@@ -1254,6 +1280,7 @@ export default function Home() {
                 {filteredReviews.map((review) => (
                   <button
                     key={review.id}
+                    type="button"
                     onClick={() => openReview(review.id)}
                     className={`w-full rounded-3xl border p-5 text-left transition hover:scale-[1.01] ${
                       selectedReviewId === review.id

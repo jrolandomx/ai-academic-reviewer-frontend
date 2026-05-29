@@ -515,6 +515,47 @@ export default function Home() {
     }
   }
 
+  async function deleteReview(id: number) {
+  if (!token) {
+    alert("Debes iniciar sesión");
+    return;
+  }
+
+  const confirmDelete = confirm(
+    "¿Deseas eliminar este dictamen del historial?"
+  );
+
+  if (!confirmDelete) return;
+
+  try {
+    const response = await fetch(`${API_URL}/reviews/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(getErrorMessage(data, "Error eliminando dictamen"));
+      return;
+    }
+
+    if (selectedReviewId === id) {
+      setSelectedReviewId(null);
+      setArticleReview("");
+      setReviewScore("");
+    }
+
+    await loadReviews();
+    await loadDashboard();
+    await loadArticles();
+  } catch {
+    alert("Error eliminando dictamen");
+  }
+}
+  
   function exportSelectedWord() {
     if (!selectedReviewId) {
       alert("Primero genera o selecciona un dictamen del historial");
@@ -1257,6 +1298,18 @@ export default function Home() {
                         </p>
                       </div>
                     </div>
+                    <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteReview(review.id);
+                    }}
+                    className="rounded-xl bg-red-100 px-3 py-2 text-xs font-semibold text-red-700"
+                  >
+                    Eliminar
+                  </button>
+                </div>
                   </button>
                 ))}
               </div>

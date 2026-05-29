@@ -68,6 +68,7 @@ export default function Home() {
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [articles, setArticles] = useState<ArticleItem[]>([]);
   const [searchReview, setSearchReview] = useState("");
+  const [filterBadge, setFilterBadge] = useState("Todos");
 
   const [dashboard, setDashboard] = useState({
     total_reviews: 0,
@@ -101,12 +102,20 @@ export default function Home() {
   );
 
   const filteredReviews = useMemo(() => {
-    return reviews.filter((review) =>
-      `${review.review_type} ${review.badge} ${review.filename}`
-        .toLowerCase()
-        .includes(searchReview.toLowerCase())
-    );
-  }, [reviews, searchReview]);
+    return reviews.filter((review) => {
+      const searchableText = `${review.review_type} ${review.badge} ${review.filename}`
+        .toLowerCase();
+
+      const matchesSearch = searchableText.includes(
+        searchReview.toLowerCase()
+      );
+
+      const matchesBadge =
+        filterBadge === "Todos" || review.badge === filterBadge;
+
+      return matchesSearch && matchesBadge;
+    });
+  }, [reviews, searchReview, filterBadge]);
 
   const detectedBadge = useMemo(() => {
     const text = articleReview.toLowerCase();
@@ -445,6 +454,47 @@ export default function Home() {
     }
   }
 
+  async function deleteReview(id: number) {
+    if (!token) {
+      alert("Debes iniciar sesión");
+      return;
+    }
+
+    const confirmDelete = confirm(
+      "¿Deseas eliminar este dictamen del historial?"
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      const response = await fetch(`${API_URL}/reviews/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(getErrorMessage(data, "Error eliminando dictamen"));
+        return;
+      }
+
+      if (selectedReviewId === id) {
+        setSelectedReviewId(null);
+        setArticleReview("");
+        setReviewScore("");
+      }
+
+      await loadReviews();
+      await loadDashboard();
+      await loadArticles();
+    } catch {
+      alert("Error eliminando dictamen");
+    }
+  }
+
   async function sendMessage() {
     setLoadingChat(true);
 
@@ -475,8 +525,7 @@ export default function Home() {
 
     setLoadingChat(false);
   }
-
-  async function compareVersions() {
+    async function compareVersions() {
     try {
       const formData = new FormData();
 
@@ -515,47 +564,6 @@ export default function Home() {
     }
   }
 
-  async function deleteReview(id: number) {
-  if (!token) {
-    alert("Debes iniciar sesión");
-    return;
-  }
-
-  const confirmDelete = confirm(
-    "¿Deseas eliminar este dictamen del historial?"
-  );
-
-  if (!confirmDelete) return;
-
-  try {
-    const response = await fetch(`${API_URL}/reviews/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      alert(getErrorMessage(data, "Error eliminando dictamen"));
-      return;
-    }
-
-    if (selectedReviewId === id) {
-      setSelectedReviewId(null);
-      setArticleReview("");
-      setReviewScore("");
-    }
-
-    await loadReviews();
-    await loadDashboard();
-    await loadArticles();
-  } catch {
-    alert("Error eliminando dictamen");
-  }
-}
-  
   function exportSelectedWord() {
     if (!selectedReviewId) {
       alert("Primero genera o selecciona un dictamen del historial");
@@ -610,7 +618,8 @@ export default function Home() {
             </button>
           </div>
         </header>
-                <div className="grid grid-cols-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
           <aside className="space-y-6">
             <section
               className={`rounded-3xl p-6 shadow-xl ${
@@ -725,9 +734,48 @@ export default function Home() {
                 </ResponsiveContainer>
               </div>
             </section>
-          </aside>
 
-          <section className="min-w-0 space-y-6">
+            <section
+              className={`rounded-3xl p-6 shadow-xl ${
+                darkMode ? "bg-slate-900" : "bg-white"
+              }`}
+            >
+              <h2 className="mb-6 text-2xl font-bold">
+                Resumen editorial
+              </h2>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-2xl bg-emerald-100 p-4 text-emerald-700">
+                  <span>Aceptados</span>
+                  <strong>
+                    {reviews.filter((r) => r.badge === "Aceptado sin cambios").length}
+                  </strong>
+                </div>
+
+                <div className="flex items-center justify-between rounded-2xl bg-blue-100 p-4 text-blue-700">
+                  <span>Cambios menores</span>
+                  <strong>
+                    {reviews.filter((r) => r.badge === "Aceptado con cambios menores").length}
+                  </strong>
+                </div>
+
+                <div className="flex items-center justify-between rounded-2xl bg-amber-100 p-4 text-amber-700">
+                  <span>Cambios mayores</span>
+                  <strong>
+                    {reviews.filter((r) => r.badge === "Requiere cambios mayores").length}
+                  </strong>
+                </div>
+
+                <div className="flex items-center justify-between rounded-2xl bg-red-100 p-4 text-red-700">
+                  <span>Rechazados</span>
+                  <strong>
+                    {reviews.filter((r) => r.badge === "Rechazado").length}
+                  </strong>
+                </div>
+              </div>
+            </section>
+          </aside>
+                    <section className="min-w-0 space-y-6">
             <section
               className={`rounded-3xl p-4 shadow-xl ${
                 darkMode ? "bg-slate-900" : "bg-white"
@@ -893,7 +941,8 @@ export default function Home() {
                 )}
               </div>
             </section>
-                        {activeTab === "review" && (
+
+            {activeTab === "review" && (
               <section
                 className={`rounded-3xl p-6 shadow-xl ${
                   darkMode ? "bg-slate-900" : "bg-white"
@@ -971,8 +1020,7 @@ export default function Home() {
                 </div>
               </section>
             )}
-
-            {activeTab === "articles" && (
+                        {activeTab === "articles" && (
               <section
                 className={`rounded-3xl p-6 shadow-xl ${
                   darkMode ? "bg-slate-900" : "bg-white"
@@ -1023,13 +1071,8 @@ export default function Home() {
                       )}
 
                       {articles.map((article) => (
-                        <tr
-                          key={article.id}
-                          className="border-b"
-                        >
-                          <td className="p-4">
-                            {article.id}
-                          </td>
+                        <tr key={article.id} className="border-b">
+                          <td className="p-4">{article.id}</td>
 
                           <td className="p-4 font-semibold">
                             {String(article.title)}
@@ -1066,9 +1109,7 @@ export default function Home() {
                           </td>
 
                           <td className="p-4 text-sm text-slate-500">
-                            {new Date(
-                              article.created_at
-                            ).toLocaleDateString()}
+                            {new Date(article.created_at).toLocaleDateString()}
                           </td>
                         </tr>
                       ))}
@@ -1092,9 +1133,7 @@ export default function Home() {
                   <textarea
                     rows={12}
                     value={originalText}
-                    onChange={(e) =>
-                      setOriginalText(e.target.value)
-                    }
+                    onChange={(e) => setOriginalText(e.target.value)}
                     placeholder="Versión original..."
                     className="min-w-0 rounded-3xl border p-5 text-black"
                   />
@@ -1102,9 +1141,7 @@ export default function Home() {
                   <textarea
                     rows={12}
                     value={correctedText}
-                    onChange={(e) =>
-                      setCorrectedText(e.target.value)
-                    }
+                    onChange={(e) => setCorrectedText(e.target.value)}
                     placeholder="Versión corregida..."
                     className="min-w-0 rounded-3xl border p-5 text-black"
                   />
@@ -1145,9 +1182,7 @@ export default function Home() {
                   <textarea
                     rows={5}
                     value={message}
-                    onChange={(e) =>
-                      setMessage(e.target.value)
-                    }
+                    onChange={(e) => setMessage(e.target.value)}
                     placeholder="Escribe tu pregunta..."
                     className="w-full rounded-2xl border p-4 text-black"
                   />
@@ -1191,11 +1226,21 @@ export default function Home() {
                     type="text"
                     placeholder="Buscar revisión..."
                     value={searchReview}
-                    onChange={(e) =>
-                      setSearchReview(e.target.value)
-                    }
+                    onChange={(e) => setSearchReview(e.target.value)}
                     className="mt-4 w-full rounded-2xl border p-4 text-black"
                   />
+
+                  <select
+                    value={filterBadge}
+                    onChange={(e) => setFilterBadge(e.target.value)}
+                    className="mt-3 w-full rounded-2xl border p-3 text-black"
+                  >
+                    <option>Todos</option>
+                    <option>Aceptado sin cambios</option>
+                    <option>Aceptado con cambios menores</option>
+                    <option>Requiere cambios mayores</option>
+                    <option>Rechazado</option>
+                  </select>
                 </div>
               </div>
 
@@ -1211,7 +1256,9 @@ export default function Home() {
                     key={review.id}
                     onClick={() => openReview(review.id)}
                     className={`w-full rounded-3xl border p-5 text-left transition hover:scale-[1.01] ${
-                      darkMode
+                      selectedReviewId === review.id
+                        ? "border-blue-500"
+                        : darkMode
                         ? "border-slate-700 bg-slate-950"
                         : "border-slate-200 bg-slate-50"
                     }`}
@@ -1237,8 +1284,7 @@ export default function Home() {
                         className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
                           review.badge === "Aceptado sin cambios"
                             ? "bg-emerald-100 text-emerald-700"
-                            : review.badge ===
-                              "Aceptado con cambios menores"
+                            : review.badge === "Aceptado con cambios menores"
                             ? "bg-blue-100 text-blue-700"
                             : review.badge === "Rechazado"
                             ? "bg-red-100 text-red-700"
@@ -1279,7 +1325,6 @@ export default function Home() {
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3">
-                      
                       <div className="rounded-2xl bg-slate-100 p-3 text-black">
                         <p className="text-xs text-slate-500">IA</p>
 
@@ -1292,24 +1337,23 @@ export default function Home() {
                         <p className="text-xs text-slate-500">Fecha</p>
 
                         <p className="text-sm font-bold">
-                          {new Date(
-                            review.created_at
-                          ).toLocaleDateString()}
+                          {new Date(review.created_at).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
-                    <div className="mt-4">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteReview(review.id);
-                    }}
-                    className="rounded-xl bg-red-100 px-3 py-2 text-xs font-semibold text-red-700"
-                  >
-                    Eliminar
-                  </button>
-                </div>
+
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteReview(review.id);
+                        }}
+                        className="rounded-xl bg-red-100 px-3 py-2 text-xs font-semibold text-red-700"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -1329,11 +1373,7 @@ export default function Home() {
                   <p className="text-sm">Riesgo IA alto</p>
 
                   <p className="text-3xl font-bold">
-                    {
-                      reviews.filter(
-                        (r) => r.ai_probability === "Alta"
-                      ).length
-                    }
+                    {reviews.filter((r) => r.ai_probability === "Alta").length}
                   </p>
                 </div>
 
@@ -1341,11 +1381,7 @@ export default function Home() {
                   <p className="text-sm">Riesgo IA medio</p>
 
                   <p className="text-3xl font-bold">
-                    {
-                      reviews.filter(
-                        (r) => r.ai_probability === "Media"
-                      ).length
-                    }
+                    {reviews.filter((r) => r.ai_probability === "Media").length}
                   </p>
                 </div>
 
@@ -1353,11 +1389,7 @@ export default function Home() {
                   <p className="text-sm">Riesgo IA bajo</p>
 
                   <p className="text-3xl font-bold">
-                    {
-                      reviews.filter(
-                        (r) => r.ai_probability === "Baja"
-                      ).length
-                    }
+                    {reviews.filter((r) => r.ai_probability === "Baja").length}
                   </p>
                 </div>
               </div>

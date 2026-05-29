@@ -1238,6 +1238,7 @@ export default function Home() {
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3">
+                      
                       <div className="rounded-2xl bg-slate-100 p-3 text-black">
                         <p className="text-xs text-slate-500">IA</p>
 

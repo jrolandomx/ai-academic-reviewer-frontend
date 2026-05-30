@@ -36,6 +36,12 @@ interface ArticleItem {
   reviews_count: number;
 }
 
+interface UserItem {
+  id: number;
+  username: string;
+  role: string;
+}
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://ai-academic-reviewer-backend.onrender.com";
@@ -69,6 +75,7 @@ export default function Home() {
 
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [articles, setArticles] = useState<ArticleItem[]>([]);
+  const [users, setUsers] = useState<UserItem[]>([]);
   const [searchReview, setSearchReview] = useState("");
   const [filterBadge, setFilterBadge] = useState("Todos");
   const [startDate, setStartDate] = useState("");
@@ -128,8 +135,7 @@ export default function Home() {
       return matchesSearch && matchesBadge && matchesStart && matchesEnd;
     });
   }, [reviews, searchReview, filterBadge, startDate, endDate]);
-
-  const detectedBadge = useMemo(() => {
+    const detectedBadge = useMemo(() => {
     const text = articleReview.toLowerCase();
 
     if (text.includes("rechazado")) {
@@ -192,7 +198,8 @@ export default function Home() {
 
     return fallback;
   }
-    async function loadDashboard() {
+
+  async function loadDashboard() {
     try {
       const response = await fetch(`${API_URL}/dashboard`);
       const data = await response.json();
@@ -259,12 +266,78 @@ export default function Home() {
       console.error(error);
     }
   }
+    async function loadUsers() {
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_URL}/users`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(data);
+        return;
+      }
+
+      setUsers(
+        Array.isArray(data)
+          ? data.map((item: any) => ({
+              id: item.id,
+              username: item.username,
+              role: item.role,
+            }))
+          : []
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async function updateUserRole(
+    userId: number,
+    newRole: string,
+  ) {
+    if (!token) {
+      alert("Debes iniciar sesión");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+
+      formData.append("role", newRole);
+
+      const response = await fetch(`${API_URL}/users/${userId}/role`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(getErrorMessage(data, "Error actualizando rol"));
+        return;
+      }
+
+      await loadUsers();
+    } catch {
+      alert("Error actualizando rol");
+    }
+  }
 
   async function refreshData() {
     await Promise.all([
       loadReviews(),
       loadDashboard(),
       loadArticles(),
+      loadUsers(),
     ]);
   }
 
@@ -367,6 +440,7 @@ export default function Home() {
 
     setLoggedUser(null);
     setToken(null);
+    setUsers([]);
     setAuthMessage("Sesión cerrada");
   }
     async function uploadPDF(file: File) {
@@ -783,28 +857,44 @@ export default function Home() {
                 <div className="flex items-center justify-between rounded-2xl bg-emerald-100 p-4 text-emerald-700">
                   <span>Aceptados</span>
                   <strong>
-                    {reviews.filter((r) => r.badge === "Aceptado sin cambios").length}
+                    {
+                      reviews.filter(
+                        (r) => r.badge === "Aceptado sin cambios"
+                      ).length
+                    }
                   </strong>
                 </div>
 
                 <div className="flex items-center justify-between rounded-2xl bg-blue-100 p-4 text-blue-700">
                   <span>Cambios menores</span>
                   <strong>
-                    {reviews.filter((r) => r.badge === "Aceptado con cambios menores").length}
+                    {
+                      reviews.filter(
+                        (r) => r.badge === "Aceptado con cambios menores"
+                      ).length
+                    }
                   </strong>
                 </div>
 
                 <div className="flex items-center justify-between rounded-2xl bg-amber-100 p-4 text-amber-700">
                   <span>Cambios mayores</span>
                   <strong>
-                    {reviews.filter((r) => r.badge === "Requiere cambios mayores").length}
+                    {
+                      reviews.filter(
+                        (r) => r.badge === "Requiere cambios mayores"
+                      ).length
+                    }
                   </strong>
                 </div>
 
                 <div className="flex items-center justify-between rounded-2xl bg-red-100 p-4 text-red-700">
                   <span>Rechazados</span>
                   <strong>
-                    {reviews.filter((r) => r.badge === "Rechazado").length}
+                    {
+                      reviews.filter(
+                        (r) => r.badge === "Rechazado"
+                      ).length
+                    }
                   </strong>
                 </div>
               </div>
@@ -818,23 +908,35 @@ export default function Home() {
               }`}
             >
               <div className="flex flex-wrap gap-3">
-                {["review", "articles", "compare", "chat"].map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`rounded-2xl px-5 py-3 font-semibold transition ${
-                      activeTab === tab ? "bg-slate-950 text-white" : "border"
-                    }`}
-                  >
-                    {tab === "review"
-                      ? "Dictamen"
-                      : tab === "articles"
-                      ? "Editorial"
-                      : tab === "compare"
-                      ? "Comparador"
-                      : "AI Chat"}
-                  </button>
-                ))}
+                {["review", "articles", "compare", "chat", "users"].map(
+                  (tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => {
+                        setActiveTab(tab);
+
+                        if (tab === "users") {
+                          loadUsers();
+                        }
+                      }}
+                      className={`rounded-2xl px-5 py-3 font-semibold transition ${
+                        activeTab === tab
+                          ? "bg-slate-950 text-white"
+                          : "border"
+                      }`}
+                    >
+                      {tab === "review"
+                        ? "Dictamen"
+                        : tab === "articles"
+                        ? "Editorial"
+                        : tab === "compare"
+                        ? "Comparador"
+                        : tab === "chat"
+                        ? "AI Chat"
+                        : "Usuarios"}
+                    </button>
+                  )
+                )}
               </div>
             </section>
                         <section
@@ -1263,6 +1365,94 @@ export default function Home() {
                       </p>
                     </div>
                   )}
+                </div>
+              </section>
+            )}
+
+            {activeTab === "users" && (
+              <section
+                className={`rounded-3xl p-6 shadow-xl ${
+                  darkMode ? "bg-slate-900" : "bg-white"
+                }`}
+              >
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-3xl font-bold">
+                      Usuarios y roles
+                    </h2>
+
+                    <p className="mt-2 text-slate-500">
+                      Administración de perfiles del sistema
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={loadUsers}
+                    className="rounded-2xl border px-4 py-3"
+                  >
+                    Actualizar usuarios
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[620px]">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="p-4 text-left">ID</th>
+                        <th className="p-4 text-left">Usuario</th>
+                        <th className="p-4 text-left">Rol actual</th>
+                        <th className="p-4 text-left">Cambiar rol</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {users.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className="p-6 text-center text-slate-500"
+                          >
+                            No hay usuarios cargados o no tienes permisos de admin.
+                          </td>
+                        </tr>
+                      )}
+
+                      {users.map((user) => (
+                        <tr key={user.id} className="border-b">
+                          <td className="p-4">{user.id}</td>
+
+                          <td className="p-4 font-semibold">
+                            {String(user.username)}
+                          </td>
+
+                          <td className="p-4">
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                              {String(user.role)}
+                            </span>
+                          </td>
+
+                          <td className="p-4">
+                            <select
+                              value={user.role}
+                              onChange={(e) =>
+                                updateUserRole(
+                                  user.id,
+                                  e.target.value,
+                                )
+                              }
+                              className="rounded-2xl border p-3 text-black"
+                            >
+                              <option value="admin">admin</option>
+                              <option value="editor">editor</option>
+                              <option value="reviewer">reviewer</option>
+                              <option value="author">author</option>
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </section>
             )}

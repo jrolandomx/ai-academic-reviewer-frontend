@@ -71,6 +71,8 @@ export default function Home() {
   const [articles, setArticles] = useState<ArticleItem[]>([]);
   const [searchReview, setSearchReview] = useState("");
   const [filterBadge, setFilterBadge] = useState("Todos");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const [dashboard, setDashboard] = useState({
     total_reviews: 0,
@@ -115,9 +117,17 @@ export default function Home() {
       const matchesBadge =
         filterBadge === "Todos" || review.badge === filterBadge;
 
-      return matchesSearch && matchesBadge;
+      const reviewDate = new Date(review.created_at);
+
+      const matchesStart =
+        !startDate || reviewDate >= new Date(startDate);
+
+      const matchesEnd =
+        !endDate || reviewDate <= new Date(`${endDate}T23:59:59`);
+
+      return matchesSearch && matchesBadge && matchesStart && matchesEnd;
     });
-  }, [reviews, searchReview, filterBadge]);
+  }, [reviews, searchReview, filterBadge, startDate, endDate]);
 
   const detectedBadge = useMemo(() => {
     const text = articleReview.toLowerCase();
@@ -150,9 +160,7 @@ export default function Home() {
   }, [articleReview]);
 
   useEffect(() => {
-    loadDashboard();
-    loadReviews();
-    loadArticles();
+    refreshData();
   }, []);
 
   useEffect(() => {
@@ -184,8 +192,7 @@ export default function Home() {
 
     return fallback;
   }
-
-  async function loadDashboard() {
+    async function loadDashboard() {
     try {
       const response = await fetch(`${API_URL}/dashboard`);
       const data = await response.json();
@@ -205,7 +212,8 @@ export default function Home() {
       console.error(error);
     }
   }
-    async function loadReviews() {
+
+  async function loadReviews() {
     try {
       const response = await fetch(`${API_URL}/reviews`);
       const data = await response.json();
@@ -228,6 +236,36 @@ export default function Home() {
     } catch (error) {
       console.error(error);
     }
+  }
+
+  async function loadArticles() {
+    try {
+      const response = await fetch(`${API_URL}/articles`);
+      const data = await response.json();
+
+      setArticles(
+        Array.isArray(data)
+          ? data.map((item: any) => ({
+              id: item.id,
+              title: item.title || "Artículo sin título",
+              filename: item.filename || "Sin archivo",
+              status: item.status || "submitted",
+              created_at: item.created_at || new Date().toISOString(),
+              reviews_count: item.reviews_count || 0,
+            }))
+          : []
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async function refreshData() {
+    await Promise.all([
+      loadReviews(),
+      loadDashboard(),
+      loadArticles(),
+    ]);
   }
 
   async function openReview(id: number) {
@@ -255,28 +293,6 @@ export default function Home() {
       setActiveTab("review");
     } catch {
       alert("Error cargando revisión");
-    }
-  }
-
-  async function loadArticles() {
-    try {
-      const response = await fetch(`${API_URL}/articles`);
-      const data = await response.json();
-
-      setArticles(
-        Array.isArray(data)
-          ? data.map((item: any) => ({
-              id: item.id,
-              title: item.title || "Artículo sin título",
-              filename: item.filename || "Sin archivo",
-              status: item.status || "submitted",
-              created_at: item.created_at || new Date().toISOString(),
-              reviews_count: item.reviews_count || 0,
-            }))
-          : []
-      );
-    } catch (error) {
-      console.error(error);
     }
   }
 
@@ -339,9 +355,7 @@ export default function Home() {
 
       setAuthMessage("Login correcto");
 
-      await loadDashboard();
-      await loadReviews();
-      await loadArticles();
+      await refreshData();
     } catch {
       setAuthMessage("Error login");
     }
@@ -355,8 +369,7 @@ export default function Home() {
     setToken(null);
     setAuthMessage("Sesión cerrada");
   }
-
-  async function uploadPDF(file: File) {
+    async function uploadPDF(file: File) {
     setUploadStatus("Subiendo PDF...");
 
     try {
@@ -381,7 +394,8 @@ export default function Home() {
       setUploadStatus("Error cargando PDF");
     }
   }
-    async function askPDF() {
+
+  async function askPDF() {
     setLoadingPdf(true);
 
     try {
@@ -452,9 +466,7 @@ export default function Home() {
       setSelectedReviewId(data.review_id || null);
       setSelectedReview(data);
 
-      await loadDashboard();
-      await loadReviews();
-      await loadArticles();
+      await refreshData();
     } catch {
       setArticleReview("Error generando dictamen");
     }
@@ -496,9 +508,7 @@ export default function Home() {
         setReviewScore("");
       }
 
-      await loadReviews();
-      await loadDashboard();
-      await loadArticles();
+      await refreshData();
     } catch {
       alert("Error eliminando dictamen");
     }
@@ -592,7 +602,14 @@ export default function Home() {
     window.open(`${API_URL}/reviews/${selectedReviewId}/pdf`, "_blank");
   }
 
-  return (
+  function exportReviewsExcel() {
+    window.open(`${API_URL}/reviews-export/excel`, "_blank");
+  }
+
+  function exportDashboardPDF() {
+    window.open(`${API_URL}/dashboard-export/pdf`, "_blank");
+  }
+    return (
     <main
       className={`min-h-screen overflow-x-hidden p-6 transition ${
         darkMode ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-900"
@@ -628,7 +645,8 @@ export default function Home() {
             </button>
           </div>
         </header>
-                <div className="grid grid-cols-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
           <aside className="space-y-6">
             <section
               className={`rounded-3xl p-6 shadow-xl ${
@@ -700,6 +718,14 @@ export default function Home() {
               }`}
             >
               <h2 className="mb-6 text-2xl font-bold">Dashboard</h2>
+
+              <button
+                type="button"
+                onClick={exportDashboardPDF}
+                className="mb-4 w-full rounded-2xl bg-indigo-100 px-4 py-3 text-sm font-semibold text-indigo-700"
+              >
+                Exportar dashboard PDF
+              </button>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-2xl bg-slate-100 p-4 text-black">
@@ -811,8 +837,7 @@ export default function Home() {
                 ))}
               </div>
             </section>
-
-            <section
+                        <section
               className={`rounded-3xl p-6 shadow-xl ${
                 darkMode ? "bg-slate-900" : "bg-white"
               }`}
@@ -856,7 +881,9 @@ export default function Home() {
                   />
 
                   <label htmlFor="pdfUpload" className="cursor-pointer">
-                    <p className="text-lg font-semibold">Arrastra un PDF aquí</p>
+                    <p className="text-lg font-semibold">
+                      Arrastra un PDF aquí
+                    </p>
 
                     <p className="mt-2 text-sm text-slate-500">
                       o haz clic para seleccionar
@@ -921,7 +948,9 @@ export default function Home() {
 
                 {pdfResponse && (
                   <div className="rounded-3xl bg-slate-100 p-6 text-black">
-                    <h3 className="mb-3 text-xl font-bold">Respuesta del PDF</h3>
+                    <h3 className="mb-3 text-xl font-bold">
+                      Respuesta del PDF
+                    </h3>
 
                     <p className="whitespace-pre-wrap leading-relaxed">
                       {String(pdfResponse)}
@@ -951,7 +980,8 @@ export default function Home() {
                 )}
               </div>
             </section>
-                        {activeTab === "review" && (
+
+            {activeTab === "review" && (
               <section
                 className={`rounded-3xl p-6 shadow-xl ${
                   darkMode ? "bg-slate-900" : "bg-white"
@@ -972,7 +1002,8 @@ export default function Home() {
                         </span>
 
                         <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-black">
-                          Dictamen: {String(selectedReview.badge || detectedBadge.label)}
+                          Dictamen:{" "}
+                          {String(selectedReview.badge || detectedBadge.label)}
                         </span>
                       </div>
                     )}
@@ -1039,7 +1070,8 @@ export default function Home() {
                     </article>
                   ) : (
                     <div className="rounded-2xl border border-dashed p-8 text-center text-slate-500">
-                      Selecciona una revisión del historial o genera un dictamen académico
+                      Selecciona una revisión del historial o genera un dictamen
+                      académico
                     </div>
                   )}
                 </div>
@@ -1247,11 +1279,10 @@ export default function Home() {
                   <h2 className="text-2xl font-bold">
                     Historial
                   </h2>
+
                   <button
                     type="button"
-                    onClick={() =>
-                      window.open(`${API_URL}/reviews-export/excel`, "_blank")
-                    }
+                    onClick={exportReviewsExcel}
                     className="mt-3 w-full rounded-2xl bg-emerald-100 px-4 py-3 text-sm font-semibold text-emerald-700"
                   >
                     Exportar historial a Excel
@@ -1276,6 +1307,43 @@ export default function Home() {
                     <option>Requiere cambios mayores</option>
                     <option>Rechazado</option>
                   </select>
+
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="rounded-2xl border p-3 text-black"
+                    />
+
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="rounded-2xl border p-3 text-black"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchReview("");
+                      setFilterBadge("Todos");
+                      setStartDate("");
+                      setEndDate("");
+                    }}
+                    className="mt-3 w-full rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700"
+                  >
+                    Limpiar filtros
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={refreshData}
+                    className="mt-3 w-full rounded-2xl bg-blue-100 px-4 py-3 text-sm font-semibold text-blue-700"
+                  >
+                    Actualizar datos
+                  </button>
                 </div>
               </div>
 

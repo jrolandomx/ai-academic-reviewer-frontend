@@ -1247,6 +1247,15 @@ export default function Home() {
                   <h2 className="text-2xl font-bold">
                     Historial
                   </h2>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      window.open(`${API_URL}/reviews-export/excel`, "_blank")
+                    }
+                    className="mt-3 w-full rounded-2xl bg-emerald-100 px-4 py-3 text-sm font-semibold text-emerald-700"
+                  >
+                    Exportar historial a Excel
+                  </button>
 
                   <input
                     type="text"

@@ -32,6 +32,8 @@ interface ArticleItem {
   title: string;
   filename: string;
   status: string;
+  assigned_reviewer_id?: number | null;
+  assigned_reviewer?: string | null;
   created_at: string;
   reviews_count: number;
 }
@@ -54,6 +56,7 @@ export default function Home() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loggedUser, setLoggedUser] = useState<string | null>(null);
+  const [loggedRole, setLoggedRole] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [authMessage, setAuthMessage] = useState("");
 
@@ -75,7 +78,9 @@ export default function Home() {
 
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [articles, setArticles] = useState<ArticleItem[]>([]);
+  const [myAssignedArticles, setMyAssignedArticles] = useState<ArticleItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
+
   const [searchReview, setSearchReview] = useState("");
   const [filterBadge, setFilterBadge] = useState("Todos");
   const [startDate, setStartDate] = useState("");
@@ -112,22 +117,33 @@ export default function Home() {
     [dashboard]
   );
 
+  const reviewerUsers = useMemo(() => {
+    return users.filter((user) => user.role === "reviewer");
+  }, [users]);
+
+  const acceptanceRate =
+    dashboard.total_articles > 0
+      ? ((dashboard.accepted / dashboard.total_articles) * 100).toFixed(1)
+      : "0";
+
+  const rejectionRate =
+    dashboard.total_articles > 0
+      ? ((dashboard.rejected / dashboard.total_articles) * 100).toFixed(1)
+      : "0";
+
   const filteredReviews = useMemo(() => {
     return reviews.filter((review) => {
       const searchableText =
         `${review.review_type} ${review.badge} ${review.filename}`.toLowerCase();
 
-      const matchesSearch = searchableText.includes(
-        searchReview.toLowerCase()
-      );
+      const matchesSearch = searchableText.includes(searchReview.toLowerCase());
 
       const matchesBadge =
         filterBadge === "Todos" || review.badge === filterBadge;
 
       const reviewDate = new Date(review.created_at);
 
-      const matchesStart =
-        !startDate || reviewDate >= new Date(startDate);
+      const matchesStart = !startDate || reviewDate >= new Date(startDate);
 
       const matchesEnd =
         !endDate || reviewDate <= new Date(`${endDate}T23:59:59`);
@@ -172,10 +188,12 @@ export default function Home() {
   useEffect(() => {
     const savedUser = localStorage.getItem("loggedUser");
     const savedToken = localStorage.getItem("accessToken");
+    const savedRole = localStorage.getItem("role");
     const savedTheme = localStorage.getItem("darkMode");
 
     if (savedUser) setLoggedUser(savedUser);
     if (savedToken) setToken(savedToken);
+    if (savedRole) setLoggedRole(savedRole);
     if (savedTheme === "true") setDarkMode(true);
   }, []);
 
@@ -197,6 +215,19 @@ export default function Home() {
     if (typeof data.error === "string") return data.error;
 
     return fallback;
+  }
+
+  function normalizeArticle(item: any): ArticleItem {
+    return {
+      id: item.id,
+      title: item.title || "Artículo sin título",
+      filename: item.filename || "Sin archivo",
+      status: item.status || "submitted",
+      assigned_reviewer_id: item.assigned_reviewer_id ?? null,
+      assigned_reviewer: item.assigned_reviewer ?? null,
+      created_at: item.created_at || new Date().toISOString(),
+      reviews_count: item.reviews_count || 0,
+    };
   }
 
   async function loadDashboard() {
@@ -250,27 +281,17 @@ export default function Home() {
       const response = await fetch(`${API_URL}/articles`);
       const data = await response.json();
 
-      setArticles(
-        Array.isArray(data)
-          ? data.map((item: any) => ({
-              id: item.id,
-              title: item.title || "Artículo sin título",
-              filename: item.filename || "Sin archivo",
-              status: item.status || "submitted",
-              created_at: item.created_at || new Date().toISOString(),
-              reviews_count: item.reviews_count || 0,
-            }))
-          : []
-      );
+      setArticles(Array.isArray(data) ? data.map(normalizeArticle) : []);
     } catch (error) {
       console.error(error);
     }
   }
-    async function loadUsers() {
+
+  async function loadMyAssignedArticles() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${API_URL}/users`, {
+      const response = await fetch(`${API_URL}/my-assigned-articles`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -283,6 +304,28 @@ export default function Home() {
         return;
       }
 
+      setMyAssignedArticles(
+        Array.isArray(data) ? data.map(normalizeArticle) : []
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async function loadUsers() {
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_URL}/users`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) return;
+
       setUsers(
         Array.isArray(data)
           ? data.map((item: any) => ({
@@ -294,6 +337,43 @@ export default function Home() {
       );
     } catch (error) {
       console.error(error);
+    }
+  }
+    async function refreshData() {
+    await Promise.all([
+      loadReviews(),
+      loadDashboard(),
+      loadArticles(),
+      loadUsers(),
+      loadMyAssignedArticles(),
+    ]);
+  }
+
+  async function openReview(id: number) {
+    try {
+      let response = await fetch(`${API_URL}/review/${id}`);
+
+      if (!response.ok) {
+        response = await fetch(`${API_URL}/reviews/${id}`);
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(getErrorMessage(data, "Error cargando revisión"));
+        return;
+      }
+
+      const reviewText =
+        data.review || data.review_content || data.dictamen || "";
+
+      setSelectedReview(data);
+      setSelectedReviewId(id);
+      setArticleReview(reviewText);
+      setReviewScore(String(data.score || ""));
+      setActiveTab("review");
+    } catch {
+      alert("Error cargando revisión");
     }
   }
 
@@ -332,40 +412,73 @@ export default function Home() {
     }
   }
 
-  async function refreshData() {
-    await Promise.all([
-      loadReviews(),
-      loadDashboard(),
-      loadArticles(),
-      loadUsers(),
-    ]);
-  }
+  async function updateArticleStatus(
+    articleId: number,
+    newStatus: string,
+  ) {
+    if (!token) {
+      alert("Debes iniciar sesión");
+      return;
+    }
 
-  async function openReview(id: number) {
     try {
-      let response = await fetch(`${API_URL}/review/${id}`);
+      const formData = new FormData();
 
-      if (!response.ok) {
-        response = await fetch(`${API_URL}/reviews/${id}`);
-      }
+      formData.append("status", newStatus);
+
+      const response = await fetch(`${API_URL}/articles/${articleId}/status`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
       const data = await response.json();
 
       if (!response.ok) {
-        alert(getErrorMessage(data, "Error cargando revisión"));
+        alert(getErrorMessage(data, "Error actualizando estado"));
         return;
       }
 
-      const reviewText =
-        data.review || data.review_content || data.dictamen || "";
-
-      setSelectedReview(data);
-      setSelectedReviewId(id);
-      setArticleReview(reviewText);
-      setReviewScore(String(data.score || ""));
-      setActiveTab("review");
+      await refreshData();
     } catch {
-      alert("Error cargando revisión");
+      alert("Error actualizando estado");
+    }
+  }
+
+  async function assignReviewer(
+    articleId: number,
+    reviewerId: number,
+  ) {
+    if (!token) {
+      alert("Debes iniciar sesión");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+
+      formData.append("reviewer_id", String(reviewerId));
+
+      const response = await fetch(`${API_URL}/articles/${articleId}/assign`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(getErrorMessage(data, "Error asignando revisor"));
+        return;
+      }
+
+      await refreshData();
+    } catch {
+      alert("Error asignando revisor");
     }
   }
 
@@ -414,6 +527,7 @@ export default function Home() {
 
       const receivedUser = data.username || username;
       const receivedToken = data.access_token || "";
+      const receivedRole = data.role || "reviewer";
 
       if (!receivedToken) {
         setAuthMessage("No se recibió token del servidor");
@@ -421,10 +535,12 @@ export default function Home() {
       }
 
       setLoggedUser(receivedUser);
+      setLoggedRole(receivedRole);
       setToken(receivedToken);
 
       localStorage.setItem("loggedUser", receivedUser);
       localStorage.setItem("accessToken", receivedToken);
+      localStorage.setItem("role", receivedRole);
 
       setAuthMessage("Login correcto");
 
@@ -437,10 +553,13 @@ export default function Home() {
   function logoutUser() {
     localStorage.removeItem("loggedUser");
     localStorage.removeItem("accessToken");
+    localStorage.removeItem("role");
 
     setLoggedUser(null);
+    setLoggedRole(null);
     setToken(null);
     setUsers([]);
+    setMyAssignedArticles([]);
     setAuthMessage("Sesión cerrada");
   }
     async function uploadPDF(file: File) {
@@ -890,12 +1009,94 @@ export default function Home() {
                 <div className="flex items-center justify-between rounded-2xl bg-red-100 p-4 text-red-700">
                   <span>Rechazados</span>
                   <strong>
+                    {reviews.filter((r) => r.badge === "Rechazado").length}
+                  </strong>
+                </div>
+              </div>
+            </section>
+
+            <section
+              className={`rounded-3xl p-6 shadow-xl ${
+                darkMode ? "bg-slate-900" : "bg-white"
+              }`}
+            >
+              <h2 className="mb-6 text-2xl font-bold">
+                Notificaciones
+              </h2>
+
+              <div className="space-y-3">
+                <div className="rounded-2xl bg-blue-100 p-4 text-blue-700">
+                  Artículos en revisión:{" "}
+                  <strong>
                     {
-                      reviews.filter(
-                        (r) => r.badge === "Rechazado"
-                      ).length
+                      articles.filter((a) => a.status === "under_review")
+                        .length
                     }
                   </strong>
+                </div>
+
+                <div className="rounded-2xl bg-amber-100 p-4 text-amber-700">
+                  Cambios mayores pendientes:{" "}
+                  <strong>
+                    {
+                      articles.filter((a) => a.status === "major_revision")
+                        .length
+                    }
+                  </strong>
+                </div>
+
+                <div className="rounded-2xl bg-emerald-100 p-4 text-emerald-700">
+                  Artículos aceptados:{" "}
+                  <strong>
+                    {articles.filter((a) => a.status === "accepted").length}
+                  </strong>
+                </div>
+
+                <div className="rounded-2xl bg-red-100 p-4 text-red-700">
+                  Artículos rechazados:{" "}
+                  <strong>
+                    {articles.filter((a) => a.status === "rejected").length}
+                  </strong>
+                </div>
+              </div>
+            </section>
+
+            <section
+              className={`rounded-3xl p-6 shadow-xl ${
+                darkMode ? "bg-slate-900" : "bg-white"
+              }`}
+            >
+              <h2 className="mb-6 text-2xl font-bold">
+                Métricas editoriales
+              </h2>
+
+              <div className="space-y-4">
+                <div className="rounded-2xl bg-emerald-100 p-4 text-emerald-700">
+                  Tasa de aceptación
+                  <div className="text-3xl font-bold">
+                    {acceptanceRate}%
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-red-100 p-4 text-red-700">
+                  Tasa de rechazo
+                  <div className="text-3xl font-bold">
+                    {rejectionRate}%
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-blue-100 p-4 text-blue-700">
+                  Artículos publicados
+                  <div className="text-3xl font-bold">
+                    {dashboard.published_articles}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-amber-100 p-4 text-amber-700">
+                  En revisión
+                  <div className="text-3xl font-bold">
+                    {dashboard.under_review_articles}
+                  </div>
                 </div>
               </div>
             </section>
@@ -908,35 +1109,46 @@ export default function Home() {
               }`}
             >
               <div className="flex flex-wrap gap-3">
-                {["review", "articles", "compare", "chat", "users"].map(
-                  (tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => {
-                        setActiveTab(tab);
+                {[
+                  "review",
+                  "assigned",
+                  "articles",
+                  "compare",
+                  "chat",
+                  ...(loggedRole === "admin" ? ["users"] : []),
+                ].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => {
+                      setActiveTab(tab);
 
-                        if (tab === "users") {
-                          loadUsers();
-                        }
-                      }}
-                      className={`rounded-2xl px-5 py-3 font-semibold transition ${
-                        activeTab === tab
-                          ? "bg-slate-950 text-white"
-                          : "border"
-                      }`}
-                    >
-                      {tab === "review"
-                        ? "Dictamen"
-                        : tab === "articles"
-                        ? "Editorial"
-                        : tab === "compare"
-                        ? "Comparador"
-                        : tab === "chat"
-                        ? "AI Chat"
-                        : "Usuarios"}
-                    </button>
-                  )
-                )}
+                      if (tab === "users") {
+                        loadUsers();
+                      }
+
+                      if (tab === "assigned") {
+                        loadMyAssignedArticles();
+                      }
+                    }}
+                    className={`rounded-2xl px-5 py-3 font-semibold transition ${
+                      activeTab === tab
+                        ? "bg-slate-950 text-white"
+                        : "border"
+                    }`}
+                  >
+                    {tab === "review"
+                      ? "Dictamen"
+                      : tab === "assigned"
+                      ? "Mis asignaciones"
+                      : tab === "articles"
+                      ? "Editorial"
+                      : tab === "compare"
+                      ? "Comparador"
+                      : tab === "chat"
+                      ? "AI Chat"
+                      : "Usuarios"}
+                  </button>
+                ))}
               </div>
             </section>
                         <section
@@ -1083,6 +1295,100 @@ export default function Home() {
               </div>
             </section>
 
+            {activeTab === "assigned" && (
+              <section
+                className={`rounded-3xl p-6 shadow-xl ${
+                  darkMode ? "bg-slate-900" : "bg-white"
+                }`}
+              >
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-3xl font-bold">
+                      Mis artículos asignados
+                    </h2>
+
+                    <p className="mt-2 text-slate-500">
+                      Bandeja personal de revisión editorial
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={loadMyAssignedArticles}
+                    className="rounded-2xl border px-4 py-3"
+                  >
+                    Actualizar asignaciones
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  {myAssignedArticles.length === 0 && (
+                    <div className="rounded-2xl border border-dashed p-8 text-center text-slate-500 xl:col-span-2">
+                      No tienes artículos asignados.
+                    </div>
+                  )}
+
+                  {myAssignedArticles.map((article) => (
+                    <div
+                      key={article.id}
+                      className={`rounded-3xl border p-5 ${
+                        darkMode ? "border-slate-700" : "border-slate-200"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-xl font-bold">
+                            {String(article.title)}
+                          </h3>
+
+                          <p className="mt-1 truncate text-sm text-slate-500">
+                            {String(article.filename)}
+                          </p>
+                        </div>
+
+                        <span className="shrink-0 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+                          {String(article.status)}
+                        </span>
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl bg-slate-100 p-4 text-black">
+                          <p className="text-xs text-slate-500">Revisiones</p>
+
+                          <p className="text-2xl font-bold">
+                            {Number(article.reviews_count)}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl bg-slate-100 p-4 text-black">
+                          <p className="text-xs text-slate-500">Fecha</p>
+
+                          <p className="text-sm font-bold">
+                            {new Date(article.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab("review");
+                            setArticleReview(
+                              "Carga el PDF del artículo asignado y genera el dictamen académico correspondiente."
+                            );
+                          }}
+                          className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white"
+                        >
+                          Iniciar dictamen
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {activeTab === "review" && (
               <section
                 className={`rounded-3xl p-6 shadow-xl ${
@@ -1205,14 +1511,67 @@ export default function Home() {
                   </button>
                 </div>
 
+                <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                  {[
+                    ["submitted", "Recibido"],
+                    ["under_review", "En revisión"],
+                    ["minor_revision", "Cambios menores"],
+                    ["major_revision", "Cambios mayores"],
+                    ["accepted", "Aceptado"],
+                    ["rejected", "Rechazado"],
+                    ["published", "Publicado"],
+                  ].map(([status, label]) => (
+                    <div key={status} className="rounded-3xl border p-4">
+                      <h3 className="mb-3 font-bold">{label}</h3>
+
+                      <div className="space-y-3">
+                        {articles
+                          .filter((article) => article.status === status)
+                          .map((article) => (
+                            <div
+                              key={article.id}
+                              className="rounded-2xl bg-slate-100 p-4 text-black"
+                            >
+                              <p className="font-semibold">
+                                {article.title}
+                              </p>
+
+                              <p className="mt-1 text-xs text-slate-500">
+                                {article.filename}
+                              </p>
+
+                              <p className="mt-2 text-xs">
+                                Revisor:{" "}
+                                {article.assigned_reviewer || "Sin asignar"}
+                              </p>
+
+                              <p className="mt-1 text-xs">
+                                Revisiones: {article.reviews_count}
+                              </p>
+                            </div>
+                          ))}
+
+                        {articles.filter((article) => article.status === status)
+                          .length === 0 && (
+                          <p className="text-sm text-slate-500">
+                            Sin artículos
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[720px]">
+                  <table className="w-full min-w-[960px]">
                     <thead>
                       <tr className="border-b">
                         <th className="p-4 text-left">ID</th>
                         <th className="p-4 text-left">Título</th>
                         <th className="p-4 text-left">Archivo</th>
                         <th className="p-4 text-left">Estado</th>
+                        <th className="p-4 text-left">Revisor asignado</th>
+                        <th className="p-4 text-left">Asignar revisor</th>
                         <th className="p-4 text-left">Revisiones</th>
                         <th className="p-4 text-left">Fecha</th>
                       </tr>
@@ -1222,7 +1581,7 @@ export default function Home() {
                       {articles.length === 0 && (
                         <tr>
                           <td
-                            colSpan={6}
+                            colSpan={8}
                             className="p-6 text-center text-slate-500"
                           >
                             No hay artículos registrados todavía.
@@ -1243,25 +1602,62 @@ export default function Home() {
                           </td>
 
                           <td className="p-4">
-                            <span
-                              className={`rounded-full px-3 py-1 text-xs font-bold ${
-                                article.status === "accepted"
-                                  ? "bg-emerald-100 text-emerald-700"
-                                  : article.status === "rejected"
-                                  ? "bg-red-100 text-red-700"
-                                  : article.status === "under_review"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : article.status === "minor_revision"
-                                  ? "bg-amber-100 text-amber-700"
-                                  : article.status === "major_revision"
-                                  ? "bg-orange-100 text-orange-700"
-                                  : article.status === "published"
-                                  ? "bg-purple-100 text-purple-700"
-                                  : "bg-slate-100 text-slate-700"
-                              }`}
+                            <select
+                              value={article.status}
+                              onChange={(e) =>
+                                updateArticleStatus(
+                                  article.id,
+                                  e.target.value,
+                                )
+                              }
+                              className="rounded-2xl border p-3 text-black"
                             >
-                              {String(article.status)}
-                            </span>
+                              <option value="submitted">Recibido</option>
+                              <option value="under_review">En revisión</option>
+                              <option value="minor_revision">
+                                Cambios menores
+                              </option>
+                              <option value="major_revision">
+                                Cambios mayores
+                              </option>
+                              <option value="accepted">Aceptado</option>
+                              <option value="rejected">Rechazado</option>
+                              <option value="published">Publicado</option>
+                            </select>
+                          </td>
+
+                          <td className="p-4">
+                            {article.assigned_reviewer ? (
+                              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+                                {article.assigned_reviewer}
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                                Sin asignar
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="p-4">
+                            <select
+                              defaultValue=""
+                              onChange={(e) => {
+                                const reviewerId = Number(e.target.value);
+
+                                if (reviewerId) {
+                                  assignReviewer(article.id, reviewerId);
+                                }
+                              }}
+                              className="rounded-2xl border p-3 text-black"
+                            >
+                              <option value="">Asignar</option>
+
+                              {reviewerUsers.map((reviewer) => (
+                                <option key={reviewer.id} value={reviewer.id}>
+                                  {reviewer.username}
+                                </option>
+                              ))}
+                            </select>
                           </td>
 
                           <td className="p-4">
@@ -1334,9 +1730,7 @@ export default function Home() {
                   darkMode ? "bg-slate-900" : "bg-white"
                 }`}
               >
-                <h2 className="mb-6 text-3xl font-bold">
-                  AI Chat
-                </h2>
+                <h2 className="mb-6 text-3xl font-bold">AI Chat</h2>
 
                 <div className="space-y-5">
                   <textarea
@@ -1377,9 +1771,7 @@ export default function Home() {
               >
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-3xl font-bold">
-                      Usuarios y roles
-                    </h2>
+                    <h2 className="text-3xl font-bold">Usuarios y roles</h2>
 
                     <p className="mt-2 text-slate-500">
                       Administración de perfiles del sistema
@@ -1413,7 +1805,8 @@ export default function Home() {
                             colSpan={4}
                             className="p-6 text-center text-slate-500"
                           >
-                            No hay usuarios cargados o no tienes permisos de admin.
+                            No hay usuarios cargados o no tienes permisos de
+                            admin.
                           </td>
                         </tr>
                       )}
@@ -1436,10 +1829,7 @@ export default function Home() {
                             <select
                               value={user.role}
                               onChange={(e) =>
-                                updateUserRole(
-                                  user.id,
-                                  e.target.value,
-                                )
+                                updateUserRole(user.id, e.target.value)
                               }
                               className="rounded-2xl border p-3 text-black"
                             >
@@ -1466,9 +1856,7 @@ export default function Home() {
             >
               <div className="mb-6 flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-2xl font-bold">
-                    Historial
-                  </h2>
+                  <h2 className="text-2xl font-bold">Historial</h2>
 
                   <button
                     type="button"
